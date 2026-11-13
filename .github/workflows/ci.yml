@@ -1,0 +1,27 @@
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  api:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22, cache: npm }
+      - run: npm ci
+      - run: npm run validate
+      - run: npm test
+
+  app:
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Test HubCore
+        working-directory: app
+        run: swift test
+      - name: Build app bundle
+        run: PUBLIC_KEY=ab0XFw9+zx8DVgHjCxvJLLn2TOqm2PW1gi/auGzVGw8= app/scripts/build-app.sh

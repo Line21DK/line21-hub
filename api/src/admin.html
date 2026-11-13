@@ -1,0 +1,148 @@
+<!doctype html>
+<html lang="da">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>LINE21 Hub · Statistik</title>
+<meta name="robots" content="noindex">
+<style>
+  :root {
+    --bg: #0a1a1a; --bg2: #11272a; --teal: #34c0ae; --teal2: #7dd3c0; --muted: #5bb3a0;
+    --line: #2d4a4a; --red: #ff3050; --cyan: #28d2ff; --amber: #f2b84b;
+    --mono: ui-monospace, "SF Mono", Menlo, "Courier New", monospace;
+    --sans: Inter, -apple-system, "Helvetica Neue", sans-serif;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; background: var(--bg); color: var(--teal); font: 15px/1.45 var(--sans); }
+  body::after { content: ""; position: fixed; inset: 0; pointer-events: none;
+    background: repeating-linear-gradient(180deg, rgba(52,192,174,.05) 0 1px, transparent 1px 4px); }
+  main { max-width: 1100px; margin: 0 auto; padding: 28px 16px 64px; }
+  header { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; margin-bottom: 28px; }
+  .mark { height: 28px; width: 140px; filter: drop-shadow(2px 0 0 rgba(255,48,80,.55)) drop-shadow(-2px 0 0 rgba(40,210,255,.45)); }
+  .tag { font: 600 12px var(--mono); letter-spacing: .14em; text-transform: uppercase; color: var(--teal2); }
+  .rec { display: inline-flex; align-items: center; gap: 6px; font: 600 12px var(--mono); letter-spacing: .14em; }
+  .rec i { width: 8px; height: 8px; border-radius: 50%; background: var(--red); animation: blink 1.2s steps(1) infinite; }
+  @keyframes blink { 50% { opacity: 0; } }
+  @media (prefers-reduced-motion: reduce) { .rec i { animation: none; } }
+  .spacer { flex: 1; }
+  select, input, button { font: 600 13px var(--mono); color: var(--teal); background: var(--bg); border: 2px solid var(--teal); padding: 8px 10px; }
+  button { cursor: pointer; box-shadow: 3px 3px 0 var(--teal); }
+  button:active { transform: translate(3px,3px); box-shadow: none; }
+  .tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 16px; margin-bottom: 28px; }
+  .tile { border: 2px solid var(--teal); box-shadow: 6px 6px 0 var(--teal); padding: 14px 16px; background: var(--bg); }
+  .tile b { display: block; font: 700 34px/1.1 var(--mono); color: #e8fffb; font-variant-numeric: tabular-nums; }
+  .tile.warn b { color: var(--amber); }
+  .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 20px; }
+  section { border: 2px solid var(--line); padding: 16px; background: var(--bg2); min-width: 0; }
+  h2 { margin: 0 0 12px; font: 700 12px var(--mono); letter-spacing: .14em; text-transform: uppercase; color: var(--teal2); }
+  table { width: 100%; border-collapse: collapse; font-size: 14px; }
+  td { padding: 6px 0; border-bottom: 1px solid var(--line); vertical-align: top; }
+  td.n { text-align: right; font: 600 14px var(--mono); font-variant-numeric: tabular-nums; color: #e8fffb; }
+  .ver { font-family: var(--mono); }
+  .ver.latest::after { content: " ▶ nyeste"; color: var(--muted); font-size: 11px; }
+  .chart { display: flex; align-items: flex-end; gap: 3px; height: 120px; border-bottom: 2px solid var(--line); }
+  .chart div { flex: 1; background: var(--teal); min-height: 2px; position: relative; }
+  .chart div:hover { background: #e8fffb; }
+  .legend { display: flex; justify-content: space-between; font: 11px var(--mono); color: var(--muted); margin-top: 6px; }
+  .empty { color: var(--muted); font-size: 13px; }
+  .gate { max-width: 420px; margin: 12vh auto; border: 2px solid var(--teal); box-shadow: 6px 6px 0 var(--teal); padding: 24px; }
+  .gate input { width: 100%; margin: 12px 0; }
+  .err { color: var(--red); font: 13px var(--mono); min-height: 1em; }
+  [hidden] { display: none !important; }
+</style>
+</head>
+<body>
+<main>
+  <header>
+    <svg class="mark" viewBox="0 0 1200 240" preserveAspectRatio="none" aria-label="LINE21"><g fill="currentColor"><rect x="0" y="0" width="92" height="240"/><rect x="0" y="154" width="209" height="86"/><rect x="227" y="0" width="96" height="240"/><rect x="345" y="0" width="84" height="240"/><rect x="470" y="0" width="84" height="240"/><polygon points="429,0 510,0 554,240 475,240"/><rect x="560" y="0" width="84" height="240"/><rect x="560" y="0" width="209" height="78"/><rect x="560" y="81" width="180" height="78"/><rect x="560" y="162" width="209" height="78"/><rect x="776" y="0" width="209" height="72"/><rect x="891" y="0" width="86" height="132"/><rect x="776" y="84" width="209" height="72"/><rect x="776" y="108" width="86" height="132"/><rect x="776" y="168" width="209" height="72"/><rect x="1091" y="0" width="109" height="240"/><polygon points="991,40 1093,0 1093,78 991,118"/></g></svg>
+    <span class="tag">Hub · Statistik</span>
+    <span class="rec"><i></i>LIVE</span>
+    <span class="spacer"></span>
+    <select id="days" aria-label="Periode"><option value="7">7 dage</option><option value="30" selected>30 dage</option><option value="90">90 dage</option><option value="365">1 år</option></select>
+    <button id="logout" type="button">Log ud</button>
+  </header>
+
+  <form class="gate" id="gate" hidden>
+    <h2>Admin-nøgle</h2>
+    <p class="empty">Skriv ADMIN_TOKEN fra Railway. Den gemmes kun i denne browser.</p>
+    <input id="token" type="password" autocomplete="current-password" aria-label="Admin-nøgle">
+    <button type="submit">Åbn statistik</button>
+    <p class="err" id="err"></p>
+  </form>
+
+  <div id="dash" hidden>
+    <div class="tiles">
+      <div class="tile"><span class="tag">Aktive Hubs</span><b id="kActive">0</b></div>
+      <div class="tile"><span class="tag">Downloads</span><b id="kDl">0</b></div>
+      <div class="tile"><span class="tag">Installationer</span><b id="kInst">0</b></div>
+      <div class="tile" id="tFail"><span class="tag">Fejl</span><b id="kFail">0</b></div>
+    </div>
+    <div class="grid">
+      <section style="grid-column: 1 / -1"><h2>Aktive Hubs pr. dag</h2><div class="chart" id="chart"></div><div class="legend"><span id="l0"></span><span id="l1"></span></div></section>
+      <section><h2>Installeret lige nu</h2><div id="installed"></div></section>
+      <section><h2>Downloads pr. version</h2><div id="downloads"></div></section>
+      <section><h2>Opdateringer gennemført</h2><div id="installs"></div></section>
+      <section><h2>Fejl</h2><div id="failures"></div></section>
+      <section><h2>Værtsprogrammer</h2><div id="hosts"></div></section>
+      <section><h2>macOS og Hub-version</h2><div id="sys"></div></section>
+    </div>
+  </div>
+</main>
+<script>
+(() => {
+  const $ = (id) => document.getElementById(id);
+  const store = { get() { try { return localStorage.getItem('l21token') || ''; } catch { return ''; } },
+                  set(v) { try { v ? localStorage.setItem('l21token', v) : localStorage.removeItem('l21token'); } catch {} } };
+  const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+  const sum = (o) => Object.values(o || {}).reduce((a, b) => a + (typeof b === 'number' ? b : sum(b)), 0);
+  let targets = {};
+  const label = (t) => (targets[t] && targets[t].label) || t;
+
+  function nested(el, data, latestMark) {
+    const keys = Object.keys(data || {});
+    if (!keys.length) { el.innerHTML = '<p class="empty">Ingen data endnu.</p>'; return; }
+    el.innerHTML = keys.map((t) => {
+      const rows = Object.entries(data[t]).sort((a, b) => b[1] - a[1]).map(([k, n]) => {
+        const latest = latestMark && targets[t] && targets[t].latest === k ? ' latest' : '';
+        return `<tr><td class="ver${latest}">${esc(k)}</td><td class="n">${n}</td></tr>`;
+      }).join('');
+      return `<table><tr><td colspan="2"><b>${esc(label(t))}</b></td></tr>${rows}</table>`;
+    }).join('');
+  }
+  function flat(el, data, title) {
+    const rows = Object.entries(data || {}).sort((a, b) => b[1] - a[1]);
+    el.insertAdjacentHTML('beforeend', `<table><tr><td colspan="2"><b>${esc(title)}</b></td></tr>${rows.map(([k, n]) => `<tr><td class="ver">${esc(k)}</td><td class="n">${n}</td></tr>`).join('') || '<tr><td class="empty">Ingen data endnu.</td></tr>'}</table>`);
+  }
+
+  async function load() {
+    const token = store.get();
+    if (!token) { $('gate').hidden = false; $('dash').hidden = true; return; }
+    const res = await fetch(`/v1/admin/stats?days=${$('days').value}`, { headers: { authorization: `Bearer ${token}` } });
+    if (res.status === 401) { store.set(''); $('err').textContent = 'Forkert nøgle.'; $('gate').hidden = false; $('dash').hidden = true; return; }
+    const s = await res.json();
+    targets = s.targets || {};
+    $('gate').hidden = true; $('dash').hidden = false;
+    $('kActive').textContent = s.activeInstalls;
+    $('kDl').textContent = sum(s.downloads);
+    $('kInst').textContent = sum(s.installs);
+    $('kFail').textContent = sum(s.failures);
+    $('tFail').classList.toggle('warn', sum(s.failures) > 0);
+    const max = Math.max(1, ...s.daily.map((d) => d.active));
+    $('chart').innerHTML = s.daily.map((d) => `<div style="height:${(d.active / max) * 100}%" title="${d.day}: ${d.active} aktive, ${d.downloads} downloads, ${d.installs} installationer"></div>`).join('') || '<p class="empty">Ingen data endnu.</p>';
+    $('l0').textContent = s.daily[0] ? s.daily[0].day : '';
+    $('l1').textContent = s.daily.length ? s.daily[s.daily.length - 1].day : '';
+    nested($('installed'), s.installed, true);
+    nested($('downloads'), s.downloads, true);
+    nested($('installs'), s.installs, true);
+    nested($('failures'), s.failures, false);
+    nested($('hosts'), s.hostVersions, false);
+    $('sys').innerHTML = ''; flat($('sys'), s.osVersions, 'macOS'); flat($('sys'), s.hubVersions, 'LINE21 Hub');
+  }
+  $('gate').addEventListener('submit', (e) => { e.preventDefault(); store.set($('token').value.trim()); $('err').textContent = ''; load(); });
+  $('logout').addEventListener('click', () => { store.set(''); load(); });
+  $('days').addEventListener('change', load);
+  load();
+})();
+</script>
+</body>
+</html>

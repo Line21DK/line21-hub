@@ -1,0 +1,11 @@
+{
+  "enabled": false,
+  "title": "Giv en kop kaffe",
+  "message": "LineSeparator og FloatBlur er gratis. Hvis de sparer dig tid, kan du give en kop kaffe til udviklingen.",
+  "tiers": [
+    { "id": "espresso", "label": "Espresso", "amount": 25, "currency": "DKK", "url": "https://example.com/replace-me/espresso" },
+    { "id": "cappuccino", "label": "Cappuccino", "amount": 50, "currency": "DKK", "url": "https://example.com/replace-me/cappuccino" },
+    { "id": "kande", "label": "En hel kande", "amount": 150, "currency": "DKK", "url": "https://example.com/replace-me/kande" },
+    { "id": "valgfrit", "label": "Valgfrit beløb", "amount": null, "currency": "DKK", "url": "https://example.com/replace-me/valgfrit" }
+  ]
+}

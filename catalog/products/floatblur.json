@@ -1,0 +1,29 @@
+{
+  "id": "floatblur",
+  "name": "FloatBlur",
+  "summary": "Blur-effekt fra LINE21.",
+  "homepage": null,
+  "targets": [
+    {
+      "id": "floatblur-ofx-macos",
+      "label": "FloatBlur til DaVinci Resolve",
+      "kind": "plugin-bundle",
+      "platform": "macos",
+      "host": "davinci-resolve",
+      "install": {
+        "path": "/Library/OFX/Plugins/FloatBlur.ofx.bundle",
+        "bundleId": "dk.line21.floatblur"
+      },
+      "releases": [
+        {
+          "version": "0.2.0",
+          "channel": "stable",
+          "date": "2026-11-12",
+          "notes": "- Nuværende version",
+          "requires": { "macos": "11.0" },
+          "artifacts": []
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,24 @@
+{
+  "davinci-resolve": {
+    "name": "DaVinci Resolve",
+    "macos": {
+      "bundleIds": [
+        "com.blackmagic-design.DaVinciResolve",
+        "com.blackmagic-design.DaVinciResolveLite",
+        "com.blackmagic-design.DaVinciResolveStudio"
+      ],
+      "appPaths": [
+        "/Applications/DaVinci Resolve/DaVinci Resolve.app",
+        "/Applications/DaVinci Resolve Studio/DaVinci Resolve.app"
+      ]
+    }
+  },
+  "adobe-premiere-pro": {
+    "name": "Adobe Premiere Pro",
+    "macos": { "bundleIdPrefixes": ["com.adobe.PremierePro"] }
+  },
+  "adobe-after-effects": {
+    "name": "Adobe After Effects",
+    "macos": { "bundleIdPrefixes": ["com.adobe.AfterEffects"] }
+  }
+}
