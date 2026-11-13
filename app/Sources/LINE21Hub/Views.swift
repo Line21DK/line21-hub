@@ -6,30 +6,33 @@ struct ContentView: View {
     @EnvironmentObject var store: HubStore
 
     var body: some View {
-        ZStack {
-            L21.bg.ignoresSafeArea()
-            VStack(spacing: 0) {
-                Header()
-                Rectangle().fill(L21.accent).frame(height: 2)
-                ScrollView {
-                    VStack(alignment: .leading, spacing: 22) {
-                        if let error = store.loadError { Notice(text: error, color: L21.amber) }
-                        if store.updatesAvailable.count > 1 { UpdateAllBanner() }
-                        ForEach(groups) { group in
-                            VStack(alignment: .leading, spacing: 14) {
-                                Tag(text: group.title)
-                                ForEach(group.rows) { row in RowCard(row: row) }
+        VStack(spacing: 0) {
+            Header()
+            Divider().overlay(L21.line)
+            ScrollView {
+                VStack(alignment: .leading, spacing: 18) {
+                    if let error = store.loadError { Notice(text: error, color: L21.amber) }
+                    ForEach(groups) { group in
+                        VStack(alignment: .leading, spacing: 8) {
+                            Tag(text: group.title, color: L21.muted)
+                            VStack(spacing: 0) {
+                                ForEach(Array(group.rows.enumerated()), id: \.element.id) { i, row in
+                                    if i > 0 { Rectangle().fill(L21.line).frame(height: 1) }
+                                    RowView(row: row)
+                                }
                             }
+                            .background(L21.panel)
+                            .overlay(Rectangle().strokeBorder(L21.line, lineWidth: 1))
                         }
-                        if store.rows.isEmpty && store.loadError == nil { LoadingTape() }
                     }
-                    .padding(24)
+                    if store.rows.isEmpty && store.loadError == nil { LoadingTape() }
                 }
-                Footer()
+                .padding(20)
             }
-            Scanlines().ignoresSafeArea()
+            Footer()
         }
-        .frame(minWidth: 560, minHeight: 460)
+        .background(L21.bg)
+        .frame(minWidth: 520, minHeight: 380)
         .sheet(item: $store.gate) { gate in GateSheet(gate: gate) }
     }
 
@@ -39,68 +42,78 @@ struct ContentView: View {
         var rows: [Row]
     }
 
-    /// One section per host app, e.g. "DaVinci Resolve · OFX-plugins".
+    /// One section per host app, e.g. "DaVinci Resolve".
     private var groups: [Group] {
         let hosts = store.catalog?.hosts ?? [:]
         let grouped = Dictionary(grouping: store.rows) { row -> String in
-            guard let name = row.target.host.flatMap({ hosts[$0]?.name }) else { return "Programmer" }
-            return row.target.kind == .pluginBundle ? "\(name) · Plugins" : name
+            row.target.host.flatMap { hosts[$0]?.name } ?? "Programmer"
         }
         return grouped.keys.sorted().map { Group(title: $0, rows: grouped[$0]!.sorted { $0.product.name < $1.product.name }) }
     }
 }
 
+/// Compact toolbar: wordmark, last check, refresh, and "Opdater alle" when there is more than one.
 struct Header: View {
     @EnvironmentObject var store: HubStore
 
     var body: some View {
-        HStack(spacing: 14) {
-            GlitchMark(trigger: store.glitch).frame(width: 104, height: 21)
-            Tag(text: "Hub", color: L21.accent)
+        HStack(spacing: 12) {
+            GlitchMark(trigger: store.glitch).frame(width: 72, height: 14)
+            Text("Hub").font(.system(size: 13, weight: .semibold)).foregroundStyle(L21.accentSoft)
             Spacer()
-            VStack(alignment: .trailing, spacing: 2) {
-                Tag(text: store.checking ? "Søger…" : "Sidst tjekket", color: L21.muted)
-                Text(store.lastChecked.map { Self.clock.string(from: $0) } ?? "--:--:--")
-                    .font(L21.mono(13, .bold)).foregroundStyle(L21.ink).monospacedDigit()
-            }
+            Text(status).font(.system(size: 11.5)).foregroundStyle(L21.muted).monospacedDigit()
             Button {
                 Task { await store.refresh() }
             } label: {
-                Image(systemName: "arrow.clockwise").font(.system(size: 13, weight: .bold))
+                Image(systemName: "arrow.clockwise").font(.system(size: 12, weight: .semibold))
                     .rotationEffect(.degrees(store.checking ? 360 : 0))
                     .animation(store.checking ? .linear(duration: 0.9).repeatForever(autoreverses: false) : .default, value: store.checking)
             }
-            .buttonStyle(L21ButtonStyle(kind: .secondary))
-            .help("Søg efter opdateringer nu")
+            .buttonStyle(L21ButtonStyle(kind: .quiet))
+            .help("Søg efter opdateringer (⌘R)")
             .keyboardShortcut("r")
             .disabled(store.checking)
+            if store.updatesAvailable.count > 1 {
+                Button("Opdater alle (\(store.updatesAvailable.count))") { store.update(store.updatesAvailable.map(\.id)) }
+                    .buttonStyle(L21ButtonStyle())
+            }
         }
-        .padding(.horizontal, 24)
-        .padding(.vertical, 16)
+        .padding(.horizontal, 20)
+        .padding(.vertical, 12)
+    }
+
+    private var status: String {
+        if store.checking { return "Søger…" }
+        guard let d = store.lastChecked else { return "" }
+        return "Tjekket \(Self.clock.string(from: d))"
     }
 
     static let clock: DateFormatter = {
         let f = DateFormatter()
-        f.dateFormat = "HH:mm:ss"
+        f.dateFormat = "HH:mm"
         return f
     }()
 }
 
-struct UpdateAllBanner: View {
-    @EnvironmentObject var store: HubStore
+/// Small square with the product's initials, so each row reads as an app, not a web card.
+struct ProductBadge: View {
+    var name: String
+    var highlighted: Bool
     var body: some View {
-        HStack {
-            StatusChip(kind: .update, text: "\(store.updatesAvailable.count) opdateringer klar")
-            Spacer()
-            Button("Opdater alle") { store.update(store.updatesAvailable.map(\.id)) }
-                .buttonStyle(L21ButtonStyle())
-        }
-        .padding(14)
-        .hardFrame(offset: 4, fill: L21.panel)
+        Text(initials).font(L21.mono(12, .bold))
+            .foregroundStyle(highlighted ? L21.onAccent : L21.accent)
+            .frame(width: 34, height: 34)
+            .background(highlighted ? L21.accent : Color.clear)
+            .overlay(Rectangle().strokeBorder(L21.accent, lineWidth: 1.5))
+            .accessibilityHidden(true)
+    }
+    private var initials: String {
+        let caps = name.filter(\.isUppercase)
+        return String((caps.count >= 2 ? caps : name).prefix(2)).uppercased()
     }
 }
 
-struct RowCard: View {
+struct RowView: View {
     @EnvironmentObject var store: HubStore
     var row: Row
     @State private var showNotes = false
@@ -108,108 +121,109 @@ struct RowCard: View {
     private var job: Job? { store.jobs[row.id] }
     private var outcome: Outcome? { store.outcomes[row.id] }
     private var waitingForQuit: Bool { store.afterQuit.values.contains { $0.contains(row.id) } }
+    private var updateReady: Bool { row.hasUpdate && row.isInstalled }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            HStack(alignment: .top, spacing: 14) {
-                VStack(alignment: .leading, spacing: 6) {
-                    HStack(spacing: 10) {
-                        Text(row.product.name).font(.system(size: 17, weight: .bold)).foregroundStyle(L21.ink)
-                        chip
+        VStack(alignment: .leading, spacing: 10) {
+            HStack(spacing: 12) {
+                ProductBadge(name: row.product.name, highlighted: updateReady)
+                VStack(alignment: .leading, spacing: 3) {
+                    Text(row.product.name).font(.system(size: 14, weight: .semibold)).foregroundStyle(L21.ink)
+                    HStack(spacing: 6) {
+                        versionText
+                        Text("·").foregroundStyle(L21.line)
+                        statusText
+                        if !notes.isEmpty {
+                            Text("·").foregroundStyle(L21.line)
+                            Button(showNotes ? "Skjul nyt" : "Hvad er nyt") {
+                                withAnimation(.easeOut(duration: 0.15)) { showNotes.toggle() }
+                            }
+                            .buttonStyle(.plain).foregroundStyle(L21.accent)
+                        }
                     }
-                    if let summary = row.product.summary {
-                        Text(summary).font(.system(size: 13)).foregroundStyle(L21.accentSoft).fixedSize(horizontal: false, vertical: true)
-                    }
-                    versionLine
+                    .font(.system(size: 11.5))
                 }
                 Spacer(minLength: 12)
                 action
             }
 
             if let job {
-                VStack(alignment: .leading, spacing: 6) {
+                HStack(spacing: 10) {
                     TapeProgress(value: job.step == .downloading ? job.progress : nil)
-                    Tag(text: job.step == .waitingForAdmin ? "Godkend i macOS-dialogen" : job.step.label, color: L21.accent)
+                    Text(job.step == .waitingForAdmin ? "Godkend i macOS-dialogen" : job.step.label)
+                        .font(.system(size: 11.5)).foregroundStyle(L21.accentSoft).fixedSize()
                 }
+                .padding(.leading, 46)
             }
 
             if let outcome {
                 HStack(alignment: .top, spacing: 8) {
-                    Text(outcome.ok ? "▶" : "✕").font(L21.mono(11, .bold)).foregroundStyle(outcome.ok ? L21.accent : L21.red)
-                    Text(outcome.message).font(.system(size: 12.5)).foregroundStyle(L21.ink).fixedSize(horizontal: false, vertical: true)
+                    Text(outcome.message).font(.system(size: 12)).foregroundStyle(outcome.ok ? L21.accentSoft : L21.red)
+                        .fixedSize(horizontal: false, vertical: true)
                     Spacer()
-                    Button { store.dismissOutcome(row.id) } label: { Image(systemName: "xmark").font(.system(size: 10, weight: .bold)) }
+                    Button { store.dismissOutcome(row.id) } label: { Image(systemName: "xmark").font(.system(size: 9, weight: .bold)) }
                         .buttonStyle(L21ButtonStyle(kind: .quiet)).help("Skjul")
                 }
+                .padding(.leading, 46)
             }
 
             if row.withdrawnInstalled {
-                Notice(text: "Din version \(row.installed ?? "") er trukket tilbage. Opdater, eller læg en backup tilbage.", color: L21.amber)
+                Notice(text: "Version \(row.installed ?? "") er trukket tilbage. Opdater, eller læg en backup tilbage.", color: L21.amber)
+                    .padding(.leading, 46)
             }
 
-            if !notes.isEmpty {
-                Button {
-                    withAnimation(.easeOut(duration: 0.15)) { showNotes.toggle() }
-                } label: {
-                    HStack(spacing: 6) {
-                        Text(showNotes ? "▼" : "▶").font(L21.mono(9, .bold))
-                        Text("Hvad er nyt").font(.system(size: 12.5, weight: .semibold))
-                    }
-                }
-                .buttonStyle(L21ButtonStyle(kind: .quiet))
-                if showNotes { ReleaseNotes(releases: notes) }
-            }
+            if showNotes { ReleaseNotes(releases: notes).padding(.leading, 46) }
         }
-        .padding(16)
-        .hardFrame(row.hasUpdate && row.isInstalled ? L21.accent : L21.line, offset: row.hasUpdate && row.isInstalled ? 6 : 4, fill: L21.panel)
+        .padding(.horizontal, 14)
+        .padding(.vertical, 12)
+        .contentShape(Rectangle())
         .contextMenu { menu }
     }
 
     /// What changed between the installed version and the newest, or the newest notes if nothing is newer.
     private var notes: [Release] {
-        row.isInstalled && row.hasUpdate ? row.newReleases : Array(row.target.releases.prefix(1))
+        updateReady ? row.newReleases : Array(row.target.releases.prefix(1))
     }
 
-    @ViewBuilder private var chip: some View {
-        if job != nil {
-            StatusChip(kind: .working, text: "Arbejder")
-        } else if waitingForQuit {
-            StatusChip(kind: .blocked, text: "Venter på Resolve")
-        } else if let reason = row.blockedReason {
-            StatusChip(kind: .blocked, text: reason)
-        } else if !row.isInstalled {
-            StatusChip(kind: .notInstalled, text: "Ikke installeret")
-        } else if row.hasUpdate {
-            StatusChip(kind: .update, text: "Ny version")
-        } else {
-            StatusChip(kind: .current, text: "Opdateret")
-        }
-    }
-
-    @ViewBuilder private var versionLine: some View {
-        HStack(spacing: 8) {
-            Text(row.installed ?? "—").foregroundStyle(row.hasUpdate ? L21.muted : L21.ink)
-            if row.hasUpdate, let new = row.candidate?.release.version {
+    private var versionText: some View {
+        HStack(spacing: 4) {
+            Text(row.installed ?? "Ikke installeret").foregroundStyle(updateReady ? L21.muted : L21.accentSoft)
+            if updateReady, let new = row.candidate?.release.version {
                 Text("→").foregroundStyle(L21.accent)
                 Text(new).foregroundStyle(L21.ink)
             }
         }
-        .font(L21.mono(14, .bold))
-        .monospacedDigit()
-        .accessibilityLabel(row.hasUpdate ? "Installeret \(row.installed ?? "ingen"), ny version \(row.candidate?.release.version ?? "")" : "Version \(row.installed ?? "ingen")")
+        .font(L21.mono(11.5, .medium))
+        .accessibilityElement(children: .combine)
+    }
+
+    @ViewBuilder private var statusText: some View {
+        if job != nil {
+            Text("Arbejder").foregroundStyle(L21.accent)
+        } else if waitingForQuit {
+            Text("Venter på at Resolve lukker").foregroundStyle(L21.amber)
+        } else if let reason = row.blockedReason {
+            Text(reason).foregroundStyle(L21.amber)
+        } else if updateReady {
+            HStack(spacing: 4) { Circle().fill(L21.red).frame(width: 6, height: 6); Text("Ny version").foregroundStyle(L21.ink) }
+        } else if row.isInstalled {
+            Text("Opdateret").foregroundStyle(L21.muted)
+        } else {
+            EmptyView()
+        }
     }
 
     @ViewBuilder private var action: some View {
         if job == nil && !waitingForQuit && row.hasUpdate {
-            VStack(alignment: .trailing, spacing: 6) {
-                Button(row.isInstalled ? "Opdater" : "Installer") { store.update([row.id]) }
-                    .buttonStyle(L21ButtonStyle())
-                    .keyboardShortcut(store.updatesAvailable.count == 1 && row.isInstalled ? .defaultAction : nil)
+            HStack(spacing: 8) {
                 if store.needsAdmin(row) {
-                    Label("Kræver adgangskode", systemImage: "lock.fill")
-                        .font(.system(size: 11)).foregroundStyle(L21.muted)
-                        .help("Plugins ligger i \((row.target.install?.path as NSString?)?.deletingLastPathComponent ?? "en systemmappe"), som macOS beskytter. Du bliver bedt om din Mac-adgangskode.")
+                    Image(systemName: "lock.fill").font(.system(size: 10)).foregroundStyle(L21.muted)
+                        .help("Plugins ligger i en mappe, som macOS beskytter. Du bliver bedt om din Mac-adgangskode.")
+                        .accessibilityLabel("Kræver adgangskode")
                 }
+                Button(row.isInstalled ? "Opdater" : "Installer") { store.update([row.id]) }
+                    .buttonStyle(L21ButtonStyle(kind: row.isInstalled ? .primary : .secondary))
+                    .keyboardShortcut(store.updatesAvailable.count == 1 && row.isInstalled ? .defaultAction : nil)
             }
         }
     }
@@ -250,13 +264,12 @@ struct ReleaseNotes: View {
                 }
             }
         }
-        .padding(12)
+        .padding(.vertical, 2)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .overlay(Rectangle().strokeBorder(L21.line, lineWidth: 1))
     }
 
     static func markdown(_ line: String) -> AttributedString {
-        let text = line.hasPrefix("- ") ? "▸ " + line.dropFirst(2) : line
+        let text = line.hasPrefix("- ") ? "• " + line.dropFirst(2) : line
         return (try? AttributedString(markdown: text)) ?? AttributedString(text)
     }
 }
@@ -294,17 +307,14 @@ struct GateSheet: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
-            HStack(spacing: 8) {
-                Text("❚❚").font(L21.mono(12, .bold)).foregroundStyle(L21.amber)
-                Tag(text: "Pause", color: L21.amber)
-            }
-            Text("\(gate.hostName) er åben").font(.system(size: 20, weight: .bold)).foregroundStyle(L21.ink)
+            Text("\(gate.hostName) er åben").font(.system(size: 17, weight: .semibold)).foregroundStyle(L21.ink)
             Text("\(names) kan ikke udskiftes, mens \(gate.hostName) kører. Gem dit projekt først. Hubben opdaterer selv, så snart programmet er lukket.")
                 .font(.system(size: 13)).foregroundStyle(L21.accentSoft).fixedSize(horizontal: false, vertical: true)
             if gate.waitingForQuit {
                 VStack(alignment: .leading, spacing: 6) {
                     TapeProgress(value: nil)
-                    Tag(text: "Venter på at \(gate.hostName) lukker. Svar på gem-dialogen i programmet.", color: L21.accent)
+                    Text("Venter på at \(gate.hostName) lukker. Svar på gem-dialogen i programmet.")
+                        .font(.system(size: 12)).foregroundStyle(L21.accentSoft)
                 }
             }
             HStack(spacing: 12) {
@@ -321,8 +331,8 @@ struct GateSheet: View {
                     .disabled(gate.waitingForQuit)
             }
         }
-        .padding(24)
-        .frame(width: 460)
+        .padding(22)
+        .frame(width: 440)
         .background(L21.bg)
     }
 }
@@ -345,10 +355,10 @@ struct Footer: View {
                 .popover(isPresented: $showSupport, arrowEdge: .top) { SupportView(support: support) }
             }
             Spacer()
-            Text("LINE21 Hub \(Config.hubVersion)").font(L21.mono(10.5, .regular)).foregroundStyle(L21.muted)
+            Text("v\(Config.hubVersion)").font(L21.mono(10.5, .regular)).foregroundStyle(L21.muted)
         }
-        .padding(.horizontal, 24)
-        .padding(.vertical, 10)
+        .padding(.horizontal, 20)
+        .padding(.vertical, 8)
         .overlay(alignment: .top) { Rectangle().fill(L21.line).frame(height: 1) }
     }
 }
@@ -359,7 +369,7 @@ struct SupportView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
-            Text(support.title).font(.system(size: 16, weight: .bold)).foregroundStyle(L21.ink)
+            Text(support.title).font(.system(size: 14, weight: .semibold)).foregroundStyle(L21.ink)
             if let message = support.message {
                 Text(message).font(.system(size: 12.5)).foregroundStyle(L21.accentSoft).fixedSize(horizontal: false, vertical: true)
             }
@@ -375,7 +385,7 @@ struct SupportView: View {
                     .buttonStyle(L21ButtonStyle(kind: .secondary))
                 }
             }
-            Tag(text: "Betaling åbner i din browser", color: L21.muted)
+            Text("Betaling åbner i din browser").font(.system(size: 11)).foregroundStyle(L21.muted)
         }
         .padding(18)
         .frame(width: 320)

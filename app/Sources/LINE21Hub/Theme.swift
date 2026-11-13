@@ -70,23 +70,21 @@ extension View {
     }
 }
 
-/// Primary action: filled, with a 3 px hard shadow that collapses when pressed.
+/// Square-cornered buttons in the LINE21 accent. Primary is filled; secondary is outlined.
 struct L21ButtonStyle: ButtonStyle {
     enum Kind { case primary, secondary, quiet }
     var kind: Kind = .primary
+    @Environment(\.isEnabled) private var isEnabled
 
     func makeBody(configuration: Configuration) -> some View {
-        let pressed = configuration.isPressed
-        return configuration.label
-            .font(.system(size: 13, weight: .bold))
-            .padding(.horizontal, kind == .quiet ? 6 : 14)
-            .padding(.vertical, kind == .quiet ? 4 : 7)
+        configuration.label
+            .font(.system(size: 12.5, weight: .semibold))
+            .padding(.horizontal, kind == .quiet ? 6 : 12)
+            .padding(.vertical, kind == .quiet ? 4 : 5)
             .foregroundStyle(kind == .primary ? L21.onAccent : L21.accent)
             .background(kind == .primary ? L21.accent : Color.clear)
-            .overlay(kind == .quiet ? nil : Rectangle().strokeBorder(L21.accent, lineWidth: 2))
-            .background(kind == .quiet ? nil : Rectangle().fill(L21.accent).offset(x: pressed ? 0 : 3, y: pressed ? 0 : 3))
-            .offset(x: pressed && kind != .quiet ? 3 : 0, y: pressed && kind != .quiet ? 3 : 0)
-            .opacity(kind == .quiet && pressed ? 0.6 : 1)
+            .overlay(kind == .secondary ? Rectangle().strokeBorder(L21.accent, lineWidth: 1.5) : nil)
+            .opacity(configuration.isPressed ? 0.7 : (isEnabled ? 1 : 0.4))
             .contentShape(Rectangle())
     }
 }
