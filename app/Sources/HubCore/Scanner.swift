@@ -8,13 +8,14 @@ public enum Scanner {
             guard let install = t.install else { continue }
             let info = BundleInfo.read(at: URL(fileURLWithPath: install.path))
             // A bundle with another id at our path is not ours; treat it as not installed.
-            out[t.id] = info?.bundleId == install.bundleId ? (info?.version ?? "ukendt") : nil
+            let version: String? = info?.bundleId == install.bundleId ? (info?.version ?? "ukendt") : nil
+            out.updateValue(version, forKey: t.id) // keep the key even when nil: "not installed" is data
         }
         return out
     }
 
     /// Version of each known host app installed on this Mac, e.g. DaVinci Resolve 20.2.
-    public static func hostVersions(_ hosts: [String: Host]) -> [String: String?] {
+    public static func hostVersions(_ hosts: [String: HostApp]) -> [String: String?] {
         var out: [String: String?] = [:]
         for (id, host) in hosts {
             for path in host.macos?.appPaths ?? [] {

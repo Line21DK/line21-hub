@@ -323,7 +323,7 @@ final class HubStore: ObservableObject {
 }
 
 enum HostApps {
-    static func matches(_ app: NSRunningApplication?, _ host: Host) -> Bool {
+    static func matches(_ app: NSRunningApplication?, _ host: HostApp) -> Bool {
         guard let app else { return false }
         let id = app.bundleIdentifier ?? ""
         if host.macos?.bundleIds?.contains(id) == true { return true }
@@ -331,7 +331,7 @@ enum HostApps {
         return app.localizedName?.hasPrefix(host.name) == true
     }
 
-    static func running(_ host: Host) -> [NSRunningApplication] {
+    static func running(_ host: HostApp) -> [NSRunningApplication] {
         NSWorkspace.shared.runningApplications.filter { matches($0, host) && !$0.isTerminated }
     }
 }

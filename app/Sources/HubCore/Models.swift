@@ -4,7 +4,7 @@ import Foundation
 public struct Catalog: Codable, Equatable, Sendable {
     public var schemaVersion: Int
     public var channel: String
-    public var hosts: [String: Host]
+    public var hosts: [String: HostApp]
     public var support: Support?
     public var products: [Product]
 
@@ -13,7 +13,7 @@ public struct Catalog: Codable, Equatable, Sendable {
     }
 }
 
-public struct Host: Codable, Equatable, Sendable {
+public struct HostApp: Codable, Equatable, Sendable {
     public var name: String
     public var macos: MacHost?
 
