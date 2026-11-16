@@ -6,7 +6,7 @@
 set -euo pipefail
 cd "$(dirname "$0")/.."
 VERSION="${VERSION:-0.1.0}"
-CATALOG_URL="${CATALOG_URL:-http://localhost:8080}"
+CATALOG_URL="${CATALOG_URL:-https://api-production-c9ef3b74.up.railway.app}"
 PUBLIC_KEY="${PUBLIC_KEY:?Set PUBLIC_KEY to the base64 key printed by npm run keygen}"
 
 swift build -c release --arch arm64 --arch x86_64
