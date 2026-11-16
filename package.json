@@ -2,7 +2,7 @@
   "name": "line21-hub",
   "private": true,
   "type": "module",
-  "engines": { "node": ">=20" },
+  "engines": { "node": "22.x" },
   "scripts": {
     "start": "node api/src/server.js",
     "dev": "node --watch api/src/server.js",

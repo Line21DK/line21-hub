@@ -1,6 +1,6 @@
 {
   "$schema": "https://railway.com/railway.schema.json",
-  "build": { "builder": "NIXPACKS", "buildCommand": "npm ci --omit=dev && npm run validate" },
+  "build": { "builder": "NIXPACKS", "buildCommand": "npm run validate" },
   "deploy": {
     "startCommand": "npm start",
     "healthcheckPath": "/healthz",
