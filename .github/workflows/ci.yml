@@ -17,7 +17,7 @@ jobs:
       - run: npm test
 
   app:
-    runs-on: macos-15
+    runs-on: macos-15-intel  # arm64 runners hit GitHub capacity limits 2026-11-16; the build is universal either way
     steps:
       - uses: actions/checkout@v4
       - name: Test HubCore
