@@ -24,4 +24,15 @@ jobs:
         working-directory: app
         run: swift test
       - name: Build app bundle
-        run: PUBLIC_KEY=ab0XFw9+zx8DVgHjCxvJLLn2TOqm2PW1gi/auGzVGw8= app/scripts/build-app.sh
+        env:
+          # Set these as repository variables once the Railway URL and signing key exist.
+          PUBLIC_KEY: ${{ vars.LINE21_SIGNING_PUBLIC_KEY || 'ab0XFw9+zx8DVgHjCxvJLLn2TOqm2PW1gi/auGzVGw8=' }}
+          CATALOG_URL: ${{ vars.LINE21_CATALOG_URL || 'http://localhost:8080' }}
+          VERSION: 0.1.${{ github.run_number }}
+        run: app/scripts/build-app.sh
+      - name: Zip app
+        run: cd app/dist && ditto -c -k --keepParent "LINE21 Hub.app" LINE21-Hub.zip
+      - uses: actions/upload-artifact@v4
+        with:
+          name: LINE21-Hub
+          path: app/dist/LINE21-Hub.zip
