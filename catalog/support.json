@@ -1,11 +1,35 @@
 {
   "enabled": false,
-  "title": "Giv en kop kaffe",
-  "message": "LineSeparator og FloatBlur er gratis. Hvis de sparer dig tid, kan du give en kop kaffe til udviklingen.",
+  "title": "Buy me a coffee",
+  "message": "LineSeparator and FloatBlur are free. If they save you time, you can buy a coffee for their development.",
   "tiers": [
-    { "id": "espresso", "label": "Espresso", "amount": 25, "currency": "DKK", "url": "https://example.com/replace-me/espresso" },
-    { "id": "cappuccino", "label": "Cappuccino", "amount": 50, "currency": "DKK", "url": "https://example.com/replace-me/cappuccino" },
-    { "id": "kande", "label": "En hel kande", "amount": 150, "currency": "DKK", "url": "https://example.com/replace-me/kande" },
-    { "id": "valgfrit", "label": "Valgfrit beløb", "amount": null, "currency": "DKK", "url": "https://example.com/replace-me/valgfrit" }
+    {
+      "id": "espresso",
+      "label": "Espresso",
+      "amount": 25,
+      "currency": "DKK",
+      "url": "https://example.com/replace-me/espresso"
+    },
+    {
+      "id": "cappuccino",
+      "label": "Cappuccino",
+      "amount": 50,
+      "currency": "DKK",
+      "url": "https://example.com/replace-me/cappuccino"
+    },
+    {
+      "id": "kande",
+      "label": "A whole pot",
+      "amount": 150,
+      "currency": "DKK",
+      "url": "https://example.com/replace-me/kande"
+    },
+    {
+      "id": "valgfrit",
+      "label": "Custom amount",
+      "amount": null,
+      "currency": "DKK",
+      "url": "https://example.com/replace-me/valgfrit"
+    }
   ]
 }

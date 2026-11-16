@@ -46,13 +46,13 @@ struct ContentView: View {
     private var groups: [Group] {
         let hosts = store.catalog?.hosts ?? [:]
         let grouped = Dictionary(grouping: store.rows) { row -> String in
-            row.target.host.flatMap { hosts[$0]?.name } ?? "Programmer"
+            row.target.host.flatMap { hosts[$0]?.name } ?? "Apps"
         }
         return grouped.keys.sorted().map { Group(title: $0, rows: grouped[$0]!.sorted { $0.product.name < $1.product.name }) }
     }
 }
 
-/// Compact toolbar: wordmark, last check, refresh, and "Opdater alle" when there is more than one.
+/// Compact toolbar: wordmark, last check, refresh, and "Update All" when there is more than one.
 struct Header: View {
     @EnvironmentObject var store: HubStore
 
@@ -70,11 +70,11 @@ struct Header: View {
                     .animation(store.checking ? .linear(duration: 0.9).repeatForever(autoreverses: false) : .default, value: store.checking)
             }
             .buttonStyle(L21ButtonStyle(kind: .quiet))
-            .help("Søg efter opdateringer (⌘R)")
+            .help("Check for updates (⌘R)")
             .keyboardShortcut("r")
             .disabled(store.checking)
             if store.updatesAvailable.count > 1 {
-                Button("Opdater alle (\(store.updatesAvailable.count))") { store.update(store.updatesAvailable.map(\.id)) }
+                Button("Update All (\(store.updatesAvailable.count))") { store.update(store.updatesAvailable.map(\.id)) }
                     .buttonStyle(L21ButtonStyle())
             }
         }
@@ -83,9 +83,9 @@ struct Header: View {
     }
 
     private var status: String {
-        if store.checking { return "Søger…" }
+        if store.checking { return "Checking…" }
         guard let d = store.lastChecked else { return "" }
-        return "Tjekket \(Self.clock.string(from: d))"
+        return "Checked \(Self.clock.string(from: d))"
     }
 
     static let clock: DateFormatter = {
@@ -135,7 +135,7 @@ struct RowView: View {
                         statusText
                         if !notes.isEmpty {
                             Text("·").foregroundStyle(L21.line)
-                            Button(showNotes ? "Skjul nyt" : "Hvad er nyt") {
+                            Button(showNotes ? "Hide notes" : "What's new") {
                                 withAnimation(.easeOut(duration: 0.15)) { showNotes.toggle() }
                             }
                             .buttonStyle(.plain).foregroundStyle(L21.accent)
@@ -150,7 +150,7 @@ struct RowView: View {
             if let job {
                 HStack(spacing: 10) {
                     TapeProgress(value: job.step == .downloading ? job.progress : nil)
-                    Text(job.step == .waitingForAdmin ? "Godkend i macOS-dialogen" : job.step.label)
+                    Text(job.step == .waitingForAdmin ? "Approve in the macOS dialog" : job.step.label)
                         .font(.system(size: 11.5)).foregroundStyle(L21.accentSoft).fixedSize()
                 }
                 .padding(.leading, 46)
@@ -162,13 +162,13 @@ struct RowView: View {
                         .fixedSize(horizontal: false, vertical: true)
                     Spacer()
                     Button { store.dismissOutcome(row.id) } label: { Image(systemName: "xmark").font(.system(size: 9, weight: .bold)) }
-                        .buttonStyle(L21ButtonStyle(kind: .quiet)).help("Skjul")
+                        .buttonStyle(L21ButtonStyle(kind: .quiet)).help("Dismiss")
                 }
                 .padding(.leading, 46)
             }
 
             if row.withdrawnInstalled {
-                Notice(text: "Version \(row.installed ?? "") er trukket tilbage. Opdater, eller læg en backup tilbage.", color: L21.amber)
+                Notice(text: "Version \(row.installed ?? "") has been withdrawn. Update, or restore a backup.", color: L21.amber)
                     .padding(.leading, 46)
             }
 
@@ -199,15 +199,15 @@ struct RowView: View {
 
     @ViewBuilder private var statusText: some View {
         if job != nil {
-            Text("Arbejder").foregroundStyle(L21.accent)
+            Text("Working").foregroundStyle(L21.accent)
         } else if waitingForQuit {
-            Text("Venter på at Resolve lukker").foregroundStyle(L21.amber)
+            Text("Waiting for Resolve to quit").foregroundStyle(L21.amber)
         } else if let reason = row.blockedReason {
             Text(reason).foregroundStyle(L21.amber)
         } else if updateReady {
-            HStack(spacing: 4) { Circle().fill(L21.red).frame(width: 6, height: 6); Text("Ny version").foregroundStyle(L21.ink) }
+            HStack(spacing: 4) { Circle().fill(L21.red).frame(width: 6, height: 6); Text("New version").foregroundStyle(L21.ink) }
         } else if row.isInstalled {
-            Text("Opdateret").foregroundStyle(L21.muted)
+            Text("Up to date").foregroundStyle(L21.muted)
         } else {
             EmptyView()
         }
@@ -218,10 +218,10 @@ struct RowView: View {
             HStack(spacing: 8) {
                 if store.needsAdmin(row) {
                     Image(systemName: "lock.fill").font(.system(size: 10)).foregroundStyle(L21.muted)
-                        .help("Plugins ligger i en mappe, som macOS beskytter. Du bliver bedt om din Mac-adgangskode.")
-                        .accessibilityLabel("Kræver adgangskode")
+                        .help("Plugins live in a folder macOS protects. You will be asked for your Mac password.")
+                        .accessibilityLabel("Requires password")
                 }
-                Button(row.isInstalled ? "Opdater" : "Installer") { store.update([row.id]) }
+                Button(row.isInstalled ? "Update" : "Install") { store.update([row.id]) }
                     .buttonStyle(L21ButtonStyle(kind: row.isInstalled ? .primary : .secondary))
                     .keyboardShortcut(store.updatesAvailable.count == 1 && row.isInstalled ? .defaultAction : nil)
             }
@@ -230,18 +230,18 @@ struct RowView: View {
 
     @ViewBuilder private var menu: some View {
         if let path = row.target.install?.path, row.isInstalled {
-            Button("Vis i Finder") { NSWorkspace.shared.activateFileViewerSelecting([URL(fileURLWithPath: path)]) }
+            Button("Show in Finder") { NSWorkspace.shared.activateFileViewerSelecting([URL(fileURLWithPath: path)]) }
         }
         let backups = store.backups(for: row)
         if !backups.isEmpty {
-            Menu("Læg backup tilbage") {
+            Menu("Restore Backup") {
                 ForEach(backups) { b in
                     Button("\(b.version) · \(b.date.formatted(date: .abbreviated, time: .shortened))") { store.restore(b, row: row) }
                 }
             }
         }
         if let home = row.product.homepage, let url = URL(string: home) {
-            Button("Åbn projektside") { NSWorkspace.shared.open(url) }
+            Button("Open Project Page") { NSWorkspace.shared.open(url) }
         }
     }
 }
@@ -289,7 +289,7 @@ struct Notice: View {
 struct LoadingTape: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
-            Tag(text: "Spoler tapen…")
+            Tag(text: "Rewinding tape…")
             TapeProgress(value: nil).frame(maxWidth: 240)
         }
         .padding(.vertical, 40)
@@ -307,25 +307,25 @@ struct GateSheet: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
-            Text("\(gate.hostName) er åben").font(.system(size: 17, weight: .semibold)).foregroundStyle(L21.ink)
-            Text("\(names) kan ikke udskiftes, mens \(gate.hostName) kører. Gem dit projekt først. Hubben opdaterer selv, så snart programmet er lukket.")
+            Text("\(gate.hostName) is open").font(.system(size: 17, weight: .semibold)).foregroundStyle(L21.ink)
+            Text("\(names) can't be replaced while \(gate.hostName) is running. Save your project first. The Hub updates as soon as it has quit.")
                 .font(.system(size: 13)).foregroundStyle(L21.accentSoft).fixedSize(horizontal: false, vertical: true)
             if gate.waitingForQuit {
                 VStack(alignment: .leading, spacing: 6) {
                     TapeProgress(value: nil)
-                    Text("Venter på at \(gate.hostName) lukker. Svar på gem-dialogen i programmet.")
+                    Text("Waiting for \(gate.hostName) to quit. Answer its save dialog if it asks.")
                         .font(.system(size: 12)).foregroundStyle(L21.accentSoft)
                 }
             }
             HStack(spacing: 12) {
-                Button("Annullér") { store.cancelGate() }
+                Button("Cancel") { store.cancelGate() }
                     .buttonStyle(L21ButtonStyle(kind: .quiet))
                     .keyboardShortcut(.cancelAction)
                 Spacer()
-                Button("Når jeg lukker det") { store.deferUntilQuit(gate) }
+                Button("When I Quit It") { store.deferUntilQuit(gate) }
                     .buttonStyle(L21ButtonStyle(kind: .secondary))
                     .disabled(gate.waitingForQuit)
-                Button("Luk \(gate.hostName)") { store.quitHost(gate) }
+                Button("Quit \(gate.hostName)") { store.quitHost(gate) }
                     .buttonStyle(L21ButtonStyle())
                     .keyboardShortcut(.defaultAction)
                     .disabled(gate.waitingForQuit)
@@ -385,7 +385,7 @@ struct SupportView: View {
                     .buttonStyle(L21ButtonStyle(kind: .secondary))
                 }
             }
-            Text("Betaling åbner i din browser").font(.system(size: 11)).foregroundStyle(L21.muted)
+            Text("Payment opens in your browser").font(.system(size: 11)).foregroundStyle(L21.muted)
         }
         .padding(18)
         .frame(width: 320)
@@ -393,7 +393,7 @@ struct SupportView: View {
     }
 
     private func price(_ t: Support.Tier) -> String {
-        guard let amount = t.amount else { return "Du vælger" }
+        guard let amount = t.amount else { return "Your choice" }
         return amount.formatted(.currency(code: t.currency ?? "DKK").precision(.fractionLength(0)))
     }
 }
@@ -405,29 +405,29 @@ struct SettingsView: View {
     var body: some View {
         Form {
             Section {
-                Picker("Udgivelser", selection: $store.channel) {
-                    Text("Stabile").tag("stable")
-                    Text("Stabile og beta").tag("beta")
+                Picker("Releases", selection: $store.channel) {
+                    Text("Stable").tag("stable")
+                    Text("Stable and beta").tag("beta")
                 }
-                Toggle("Vis en notifikation, når der er nyt", isOn: $store.notificationsOn)
-                Toggle("Start LINE21 Hub ved login", isOn: Binding(get: { store.launchAtLogin }, set: { store.launchAtLogin = $0 }))
+                Toggle("Notify me about new versions", isOn: $store.notificationsOn)
+                Toggle("Open LINE21 Hub at login", isOn: Binding(get: { store.launchAtLogin }, set: { store.launchAtLogin = $0 }))
             }
             Section {
-                Toggle("Del anonym brugsstatistik", isOn: $store.telemetryOn)
-                Text("Hjælper LINE21 med at se, hvilke versioner der bruges, og om opdateringer fejler. Hubben sender et tilfældigt id, macOS- og programversioner. Aldrig navn, e-mail, filer eller projekter.")
+                Toggle("Share anonymous usage stats", isOn: $store.telemetryOn)
+                Text("Helps LINE21 see which versions are in use and whether updates fail. The Hub sends a random ID plus macOS and app versions. Never your name, email, files or projects.")
                     .font(.caption).foregroundStyle(.secondary)
             }
             Section {
-                Button("Vis backups i Finder") {
+                Button("Show Backups in Finder") {
                     try? FileManager.default.createDirectory(at: Installer.defaultBackupRoot, withIntermediateDirectories: true)
                     NSWorkspace.shared.open(Installer.defaultBackupRoot)
                 }
-                TextField("Katalogserver", text: $url, prompt: Text(Config.defaultCatalogURL.absoluteString))
+                TextField("Catalog server", text: $url, prompt: Text(Config.defaultCatalogURL.absoluteString))
                     .onSubmit {
                         store.catalogURLString = url
                         store.reconnect()
                     }
-            } header: { Text("Avanceret") }
+            } header: { Text("Advanced") }
         }
         .formStyle(.grouped)
         .frame(width: 460)

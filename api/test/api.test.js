@@ -23,10 +23,10 @@ function fixtureCatalog() {
   delete p.__file;
   const t = p.targets[0];
   t.releases.push(
-    { version: '0.4.0', channel: 'stable', date: '2026-12-01', notes: 'Ny', requires: { macos: '12.0' },
+    { version: '0.4.0', channel: 'stable', date: '2026-12-01', notes: 'New', requires: { macos: '12.0' },
       artifacts: [{ platform: 'macos', arch: 'universal', key: 'k/0.4.0.zip', size: 10, sha256: sha, signature: 'sig' }] },
     { version: '0.5.0-beta.1', channel: 'beta', date: '2026-12-10', notes: 'Beta', artifacts: [] },
-    { version: '0.3.5', channel: 'stable', status: 'withdrawn', date: '2026-11-20', notes: 'Trukket', artifacts: [] },
+    { version: '0.3.5', channel: 'stable', status: 'withdrawn', date: '2026-11-20', notes: 'Withdrawn', artifacts: [] },
   );
   writeFileSync(join(dir, 'products', 'lineseparator.json'), JSON.stringify(p));
   mkdirSync(join(dir, 'products'), { recursive: true });
@@ -127,11 +127,11 @@ test('events are validated, stored and summarised behind the admin token', async
   assert.equal(stats.activeInstalls, 1);
   assert.deepEqual(stats.installs, { 'lineseparator-ofx-macos': { '0.4.0': 1 } });
   assert.deepEqual(stats.failures, { 'floatblur-ofx-macos': { admin_cancelled: 1 } });
-  assert.deepEqual(stats.installed['floatblur-ofx-macos'], { 'ikke installeret': 1 });
+  assert.deepEqual(stats.installed['floatblur-ofx-macos'], { 'not installed': 1 });
   assert.deepEqual(stats.hostVersions, { 'davinci-resolve': { '20.2': 1 } });
   assert.equal(stats.targets['lineseparator-ofx-macos'].latest, '0.4.0');
   const html = await (await fetch(`${s.base}/admin`)).text();
-  assert.match(html, /LINE21 Hub · Statistik/);
+  assert.match(html, /LINE21 Hub · Stats/);
   s.close();
 });
 

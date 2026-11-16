@@ -1,12 +1,12 @@
 {
   "id": "lineseparator",
   "name": "LineSeparator Skin",
-  "summary": "Frekvensseparation til hud: jævnere hud uden plastik-look.",
+  "summary": "Frequency separation for skin: smoother skin without the plastic look.",
   "homepage": "https://github.com/Line21DK/seperator",
   "targets": [
     {
       "id": "lineseparator-ofx-macos",
-      "label": "LineSeparator til DaVinci Resolve",
+      "label": "LineSeparator for DaVinci Resolve",
       "kind": "plugin-bundle",
       "platform": "macos",
       "host": "davinci-resolve",
@@ -19,8 +19,10 @@
           "version": "0.3.0",
           "channel": "stable",
           "date": "2026-11-12",
-          "notes": "- AI-personmaske med Apple Vision (Person (AI) under Mask Source)\n- Hele pipelinen kører på GPU'en med Metal\n- Universal bundle (Apple Silicon og Intel)",
-          "requires": { "macos": "11.0" },
+          "notes": "- AI person mask with Apple Vision (Person (AI) under Mask Source)\n- The whole pipeline runs on the GPU with Metal\n- Universal bundle (Apple Silicon and Intel)",
+          "requires": {
+            "macos": "11.0"
+          },
           "artifacts": []
         }
       ]

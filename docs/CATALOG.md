@@ -1,36 +1,36 @@
-# Udgivelseskataloget
+# The release catalog
 
-Kataloget er filer i `catalog/` i git. Hver udgivelse er et commit, så historikken viser hvem der udgav hvad og hvornår, og en fejl rulles tilbage med `git revert`. API'et læser filerne ved opstart, og Railway genstarter det ved hvert push.
+The catalog is files in `catalog/` in git. Every release is a commit, so the history shows who published what and when, and a mistake is undone with `git revert`. The API reads the files at startup, and Railway restarts it on every push.
 
 ```
 catalog/
-  hosts.json          værtsprogrammer (Resolve, Premiere, After Effects): navne, bundle-id'er, stier
-  support.json        "Giv en kop kaffe"-knappen og dens tiers
-  products/*.json     ét produkt pr. fil
+  hosts.json          host apps (Resolve, Premiere, After Effects): names, bundle IDs, paths
+  support.json        the "Buy me a coffee" button and its tiers
+  products/*.json     one product per file
 ```
 
-## Produkt, target og release
+## Product, target and release
 
-Et **produkt** er det brugeren kender (FloatBlur). Et **target** er én installation af det, med sin egen version. FloatBlur til Resolve og FloatBlur til Adobe er to targets under samme produkt, så Hubben kan vise dem hver for sig, og de kan udgives uafhængigt. En **release** er én version af ét target, med ændringer, krav og filer.
+A **product** is what the user knows (FloatBlur). A **target** is one installation of it, with its own version. FloatBlur for Resolve and FloatBlur for Adobe are two targets under one product, so the Hub can show them separately and they can be released independently. A **release** is one version of one target, with notes, requirements and files.
 
-| Felt | Betydning |
+| Field | Meaning |
 | --- | --- |
-| `target.kind` | `plugin-bundle` og `app-bundle`: Hubben installerer selv. `tauri-app`: appen opdaterer sig selv via `/v1/tauri/...`. `web-app`: Hubben åbner den og viser "Hvad er nyt". |
-| `target.host` | Nøgle i `hosts.json`. Hubben beder brugeren lukke værten før udskiftning. |
-| `target.install` | `path` (hvor bundlen ligger) og `bundleId` (så Hubben ikke rører en fremmed bundle på samme sti). |
-| `release.channel` | `stable` eller `beta`. Beta ses kun af dem, der har slået det til i Hubben. |
-| `release.status` | Sæt `"withdrawn"` for at trække en version tilbage. Den forsvinder fra kataloget, og Hubben advarer dem, der har den. |
-| `release.requires` | `macos` og `hosts` (fx `{"davinci-resolve": "19.0"}`). Hubben tilbyder kun versioner, Mac'en kan køre. |
-| `artifact` | `platform`, `arch` (`universal`, `arm64`, `x64`), `key` i bucketen, `size`, `sha256` og `signature`. Skrives af `npm run release`. |
+| `target.kind` | `plugin-bundle` and `app-bundle`: the Hub installs them. `tauri-app`: the app updates itself via `/v1/tauri/...`. `web-app`: the Hub opens it and shows "What's new". |
+| `target.host` | Key in `hosts.json`. The Hub asks the user to quit the host before replacing the plugin. |
+| `target.install` | `path` (where the bundle lives) and `bundleId` (so the Hub never touches someone else's bundle at the same path). |
+| `release.channel` | `stable` or `beta`. Beta is only shown to people who turned it on in the Hub. |
+| `release.status` | Set `"withdrawn"` to pull a version. It disappears from the catalog, and the Hub warns people who have it. |
+| `release.requires` | `macos` and `hosts` (e.g. `{"davinci-resolve": "19.0"}`). The Hub only offers versions the Mac can run. |
+| `artifact` | `platform`, `arch` (`universal`, `arm64`, `x64`), bucket `key`, `size`, `sha256` and `signature`. Written by `npm run release`. |
 
-## Sådan ser de næste produkter ud
+## What the next products look like
 
-FloatBlur til Adobe, som et ekstra target i `products/floatblur.json`:
+FloatBlur for Adobe, as an extra target in `products/floatblur.json`:
 
 ```json
 {
   "id": "floatblur-adobe-macos",
-  "label": "FloatBlur til Premiere Pro og After Effects",
+  "label": "FloatBlur for Premiere Pro and After Effects",
   "kind": "plugin-bundle",
   "platform": "macos",
   "host": "adobe-premiere-pro",
@@ -42,9 +42,9 @@ FloatBlur til Adobe, som et ekstra target i `products/floatblur.json`:
 }
 ```
 
-Sidechain Link følger samme mønster. Når et plugin bruges i både Premiere og After Effects, kan `host` udvides til en liste; det er den eneste ændring, Adobe kræver.
+Sidechain Link follows the same pattern. When a plugin is used in both Premiere and After Effects, `host` can be extended to a list; that's the only change Adobe needs.
 
-PROXEL (Tauri), `products/proxel.json`. Appen peger sin updater på `https://<api>/v1/tauri/proxel-macos/{{target}}/{{arch}}/{{current_version}}`, og Hubben viser den med en "Åbn"-knap:
+PROXEL (Tauri), `products/proxel.json`. The app points its updater at `https://<api>/v1/tauri/proxel-macos/{{target}}/{{arch}}/{{current_version}}`:
 
 ```json
 {
@@ -61,14 +61,14 @@ PROXEL (Tauri), `products/proxel.json`. Appen peger sin updater på `https://<ap
       "artifacts": [{
         "platform": "macos", "arch": "arm64", "key": "proxel/…/PROXEL.app.tar.gz",
         "size": 0, "sha256": "…", "signature": "…",
-        "tauriSignature": "indholdet af PROXEL.app.tar.gz.sig fra tauri build"
+        "tauriSignature": "contents of PROXEL.app.tar.gz.sig from tauri build"
       }]
     }]
   }]
 }
 ```
 
-Gearbank og Co-E Platform (web), uden filer:
+Gearbank and Co-E Platform (web), without files:
 
 ```json
 {
@@ -85,6 +85,6 @@ Gearbank og Co-E Platform (web), uden filer:
 }
 ```
 
-## Hvornår PostgreSQL
+## When to add PostgreSQL
 
-Kataloget i git holder til et adminpanel bliver nødvendigt: når andre end dig skal udgive, eller når betakanaler og tilbagetrækninger skal styres uden et commit. Felterne ovenfor flytter 1:1 til tabeller (`products`, `targets`, `releases`, `artifacts`), og API'ets svar ændrer sig ikke, så Hubben skal ikke opdateres.
+The git catalog works until you need an admin panel: when someone other than you publishes, or when beta channels and withdrawals should be managed without a commit. The fields above map 1:1 to tables (`products`, `targets`, `releases`, `artifacts`), and the API's responses don't change, so the Hub doesn't need an update.

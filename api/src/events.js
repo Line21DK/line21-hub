@@ -128,7 +128,7 @@ export function computeStats(rows, { days }) {
       inc(bucket(installs, r.targetId), r.toVersion ?? '?');
       d.installs++;
     } else if (r.type === 'install_fail') {
-      inc(bucket(failures, r.targetId), r.error ?? 'ukendt');
+      inc(bucket(failures, r.targetId), r.error ?? 'unknown');
       d.failures++;
     } else if (r.type === 'check' && r.installId) {
       lastCheck.set(r.installId, r);
@@ -142,7 +142,7 @@ export function computeStats(rows, { days }) {
   for (const r of lastCheck.values()) {
     inc(hubVersions, r.hubVersion ?? '?');
     inc(osVersions, r.os ?? '?');
-    for (const [t, v] of Object.entries(r.data?.installed ?? {})) inc(bucket(installed, t), v ?? 'ikke installeret');
+    for (const [t, v] of Object.entries(r.data?.installed ?? {})) inc(bucket(installed, t), v ?? 'not installed');
     for (const [h, v] of Object.entries(r.data?.hosts ?? {})) inc(bucket(hostVersions, h), v ?? '?');
   }
   return {

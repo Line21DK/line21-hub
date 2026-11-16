@@ -10,6 +10,7 @@ struct LINE21HubApp: App {
         Window("LINE21 Hub", id: "main") {
             ContentView()
                 .environmentObject(store)
+                .preferredColorScheme(.dark) // LINE21 is a dark brand; the light palette only covers system sheets.
                 .onAppear { delegate.store = store }
         }
         .defaultSize(width: 720, height: 600)
@@ -17,12 +18,12 @@ struct LINE21HubApp: App {
         .commands {
             CommandGroup(replacing: .newItem) {}
             CommandGroup(after: .appInfo) {
-                Button("Søg efter opdateringer") { Task { await store.refresh() } }.keyboardShortcut("r")
+                Button("Check for Updates") { Task { await store.refresh() } }.keyboardShortcut("r")
             }
         }
 
         Settings {
-            SettingsView().environmentObject(store)
+            SettingsView().environmentObject(store).preferredColorScheme(.dark)
         }
     }
 }

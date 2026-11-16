@@ -213,6 +213,6 @@ struct TapeProgress: View {
             .overlay(Rectangle().strokeBorder(L21.accent, lineWidth: 1))
         }
         .frame(height: 8)
-        .accessibilityValue(value.map { "\(Int($0 * 100)) procent" } ?? "i gang")
+        .accessibilityValue(value.map { "\(Int($0 * 100)) percent" } ?? "in progress")
     }
 }

@@ -8,7 +8,7 @@ public enum Scanner {
             guard let install = t.install else { continue }
             let info = BundleInfo.read(at: URL(fileURLWithPath: install.path))
             // A bundle with another id at our path is not ours; treat it as not installed.
-            let version: String? = info?.bundleId == install.bundleId ? (info?.version ?? "ukendt") : nil
+            let version: String? = info?.bundleId == install.bundleId ? (info?.version ?? "unknown") : nil
             out.updateValue(version, forKey: t.id) // keep the key even when nil: "not installed" is data
         }
         return out

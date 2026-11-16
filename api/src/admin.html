@@ -1,9 +1,9 @@
 <!doctype html>
-<html lang="da">
+<html lang="en">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>LINE21 Hub · Statistik</title>
+<title>LINE21 Hub · Stats</title>
 <meta name="robots" content="noindex">
 <style>
   :root {
@@ -38,7 +38,7 @@
   td { padding: 4px 0; border-bottom: 1px solid var(--line); vertical-align: top; }
   td.n { text-align: right; font: 600 13px var(--mono); font-variant-numeric: tabular-nums; color: #e8fffb; }
   .ver { font-family: var(--mono); }
-  .ver.latest::after { content: " ▶ nyeste"; color: var(--muted); font-size: 11px; }
+  .ver.latest::after { content: " ▶ latest"; color: var(--muted); font-size: 11px; }
   .chart { display: flex; align-items: flex-end; gap: 2px; height: 90px; border-bottom: 1px solid var(--line); }
   .chart div { flex: 1; background: var(--teal); min-height: 2px; position: relative; }
   .chart div:hover { background: #e8fffb; }
@@ -54,35 +54,35 @@
 <main>
   <header>
     <svg class="mark" viewBox="0 0 1200 240" preserveAspectRatio="none" aria-label="LINE21"><g fill="currentColor"><rect x="0" y="0" width="92" height="240"/><rect x="0" y="154" width="209" height="86"/><rect x="227" y="0" width="96" height="240"/><rect x="345" y="0" width="84" height="240"/><rect x="470" y="0" width="84" height="240"/><polygon points="429,0 510,0 554,240 475,240"/><rect x="560" y="0" width="84" height="240"/><rect x="560" y="0" width="209" height="78"/><rect x="560" y="81" width="180" height="78"/><rect x="560" y="162" width="209" height="78"/><rect x="776" y="0" width="209" height="72"/><rect x="891" y="0" width="86" height="132"/><rect x="776" y="84" width="209" height="72"/><rect x="776" y="108" width="86" height="132"/><rect x="776" y="168" width="209" height="72"/><rect x="1091" y="0" width="109" height="240"/><polygon points="991,40 1093,0 1093,78 991,118"/></g></svg>
-    <span class="tag">Hub · Statistik</span>
+    <span class="tag">Hub · Stats</span>
     <span class="spacer"></span>
-    <select id="days" aria-label="Periode"><option value="7">7 dage</option><option value="30" selected>30 dage</option><option value="90">90 dage</option><option value="365">1 år</option></select>
-    <button id="logout" type="button">Log ud</button>
+    <select id="days" aria-label="Period"><option value="7">7 days</option><option value="30" selected>30 days</option><option value="90">90 days</option><option value="365">1 year</option></select>
+    <button id="logout" type="button">Log out</button>
   </header>
 
   <form class="gate" id="gate" hidden>
-    <h2>Admin-nøgle</h2>
-    <p class="empty">Skriv ADMIN_TOKEN fra Railway. Den gemmes kun i denne browser.</p>
-    <input id="token" type="password" autocomplete="current-password" aria-label="Admin-nøgle">
-    <button type="submit">Åbn statistik</button>
+    <h2>Admin token</h2>
+    <p class="empty">Enter ADMIN_TOKEN from Railway. It is stored only in this browser.</p>
+    <input id="token" type="password" autocomplete="current-password" aria-label="Admin token">
+    <button type="submit">Open stats</button>
     <p class="err" id="err"></p>
   </form>
 
   <div id="dash" hidden>
     <div class="tiles">
-      <div class="tile"><span class="tag">Aktive Hubs</span><b id="kActive">0</b></div>
+      <div class="tile"><span class="tag">Active Hubs</span><b id="kActive">0</b></div>
       <div class="tile"><span class="tag">Downloads</span><b id="kDl">0</b></div>
-      <div class="tile"><span class="tag">Installationer</span><b id="kInst">0</b></div>
-      <div class="tile" id="tFail"><span class="tag">Fejl</span><b id="kFail">0</b></div>
+      <div class="tile"><span class="tag">Installs</span><b id="kInst">0</b></div>
+      <div class="tile" id="tFail"><span class="tag">Failures</span><b id="kFail">0</b></div>
     </div>
     <div class="grid">
-      <section style="grid-column: 1 / -1"><h2>Aktive Hubs pr. dag</h2><div class="chart" id="chart"></div><div class="legend"><span id="l0"></span><span id="l1"></span></div></section>
-      <section><h2>Installeret lige nu</h2><div id="installed"></div></section>
-      <section><h2>Downloads pr. version</h2><div id="downloads"></div></section>
-      <section><h2>Opdateringer gennemført</h2><div id="installs"></div></section>
-      <section><h2>Fejl</h2><div id="failures"></div></section>
-      <section><h2>Værtsprogrammer</h2><div id="hosts"></div></section>
-      <section><h2>macOS og Hub-version</h2><div id="sys"></div></section>
+      <section style="grid-column: 1 / -1"><h2>Active Hubs per day</h2><div class="chart" id="chart"></div><div class="legend"><span id="l0"></span><span id="l1"></span></div></section>
+      <section><h2>Installed right now</h2><div id="installed"></div></section>
+      <section><h2>Downloads per version</h2><div id="downloads"></div></section>
+      <section><h2>Completed updates</h2><div id="installs"></div></section>
+      <section><h2>Failures</h2><div id="failures"></div></section>
+      <section><h2>Host apps</h2><div id="hosts"></div></section>
+      <section><h2>macOS and Hub version</h2><div id="sys"></div></section>
     </div>
   </div>
 </main>
@@ -98,7 +98,7 @@
 
   function nested(el, data, latestMark) {
     const keys = Object.keys(data || {});
-    if (!keys.length) { el.innerHTML = '<p class="empty">Ingen data endnu.</p>'; return; }
+    if (!keys.length) { el.innerHTML = '<p class="empty">No data yet.</p>'; return; }
     el.innerHTML = keys.map((t) => {
       const rows = Object.entries(data[t]).sort((a, b) => b[1] - a[1]).map(([k, n]) => {
         const latest = latestMark && targets[t] && targets[t].latest === k ? ' latest' : '';
@@ -109,14 +109,14 @@
   }
   function flat(el, data, title) {
     const rows = Object.entries(data || {}).sort((a, b) => b[1] - a[1]);
-    el.insertAdjacentHTML('beforeend', `<table><tr><td colspan="2"><b style="color:var(--ink);font-weight:600">${esc(title)}</b></td></tr>${rows.map(([k, n]) => `<tr><td class="ver">${esc(k)}</td><td class="n">${n}</td></tr>`).join('') || '<tr><td class="empty">Ingen data endnu.</td></tr>'}</table>`);
+    el.insertAdjacentHTML('beforeend', `<table><tr><td colspan="2"><b style="color:var(--ink);font-weight:600">${esc(title)}</b></td></tr>${rows.map(([k, n]) => `<tr><td class="ver">${esc(k)}</td><td class="n">${n}</td></tr>`).join('') || '<tr><td class="empty">No data yet.</td></tr>'}</table>`);
   }
 
   async function load() {
     const token = store.get();
     if (!token) { $('gate').hidden = false; $('dash').hidden = true; return; }
     const res = await fetch(`/v1/admin/stats?days=${$('days').value}`, { headers: { authorization: `Bearer ${token}` } });
-    if (res.status === 401) { store.set(''); $('err').textContent = 'Forkert nøgle.'; $('gate').hidden = false; $('dash').hidden = true; return; }
+    if (res.status === 401) { store.set(''); $('err').textContent = 'Wrong token.'; $('gate').hidden = false; $('dash').hidden = true; return; }
     const s = await res.json();
     targets = s.targets || {};
     $('gate').hidden = true; $('dash').hidden = false;
@@ -126,7 +126,7 @@
     $('kFail').textContent = sum(s.failures);
     $('tFail').classList.toggle('warn', sum(s.failures) > 0);
     const max = Math.max(1, ...s.daily.map((d) => d.active));
-    $('chart').innerHTML = s.daily.map((d) => `<div style="height:${(d.active / max) * 100}%" title="${d.day}: ${d.active} aktive, ${d.downloads} downloads, ${d.installs} installationer"></div>`).join('') || '<p class="empty">Ingen data endnu.</p>';
+    $('chart').innerHTML = s.daily.map((d) => `<div style="height:${(d.active / max) * 100}%" title="${d.day}: ${d.active} active, ${d.downloads} downloads, ${d.installs} installs"></div>`).join('') || '<p class="empty">No data yet.</p>';
     $('l0').textContent = s.daily[0] ? s.daily[0].day : '';
     $('l1').textContent = s.daily.length ? s.daily[s.daily.length - 1].day : '';
     nested($('installed'), s.installed, true);

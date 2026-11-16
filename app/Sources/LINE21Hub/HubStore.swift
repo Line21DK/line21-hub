@@ -119,7 +119,7 @@ final class HubStore: ObservableObject {
         }
     }
 
-    /// Point the Hub at another catalog server (Settings → Avanceret).
+    /// Point the Hub at another catalog server (Settings → Advanced).
     func reconnect() {
         let base = apiBase
         client = CatalogClient(baseURL: base, cacheDirectory: Config.supportDirectory)
@@ -141,7 +141,9 @@ final class HubStore: ObservableObject {
             notifyNewVersions()
             await reportCheck()
         } catch {
-            loadError = catalog == nil ? "Kan ikke hente kataloget. Tjek din internetforbindelse." : "Offline: viser sidst kendte versioner."
+            loadError = catalog == nil
+                ? "Can't reach the catalog server at \(apiBase.host ?? apiBase.absoluteString). Check your connection, or change the server in Settings → Advanced."
+                : "Offline: showing the last known versions."
         }
     }
 
@@ -161,14 +163,14 @@ final class HubStore: ObservableObject {
             var blocked: String?
             if candidate == nil, let newest = t.releases.first {
                 if let min = newest.requires.macos, SemVer.compare(macOS, min) == .orderedAscending {
-                    blocked = "Kræver macOS \(min)"
+                    blocked = "Requires macOS \(min)"
                 } else {
-                    blocked = "Ingen pakke til denne Mac endnu"
+                    blocked = "No package for this Mac yet"
                 }
             }
             if let r = candidate?.release, let host = t.host, let min = r.requires.hosts?[host],
                let hv = hostVersions[host] ?? nil, SemVer.compare(hv, min) == .orderedAscending {
-                blocked = "Kræver \(c.hosts[host]?.name ?? host) \(min)"
+                blocked = "Requires \(c.hosts[host]?.name ?? host) \(min)"
             }
             return Row(product: p, target: t, installed: v, isInstalled: v != nil, candidate: blocked == nil ? candidate : nil,
                        newReleases: t.releases(after: v), withdrawnInstalled: v.map { t.withdrawn.contains($0) } ?? false,
@@ -196,8 +198,8 @@ final class HubStore: ObservableObject {
             guard !seen.contains(key) else { continue }
             seen.insert(key)
             let content = UNMutableNotificationContent()
-            content.title = "\(row.product.name) \(r.version) er klar"
-            content.body = "Du har \(row.installed ?? "en ældre version"). Åbn LINE21 Hub for at opdatere."
+            content.title = "\(row.product.name) \(r.version) is available"
+            content.body = "You have \(row.installed ?? "an older version"). Open LINE21 Hub to update."
             UNUserNotificationCenter.current().add(UNNotificationRequest(identifier: key, content: content, trigger: nil))
         }
         UserDefaults.standard.set(Array(seen), forKey: "notified")
@@ -263,7 +265,7 @@ final class HubStore: ObservableObject {
                     Task { @MainActor in self.jobs[id] = Job(step: step, progress: p) }
                 }
                 jobs[id] = nil
-                outcomes[id] = Outcome(ok: true, message: row.isInstalled ? "Opdateret til \(release.version). Genstart Resolve for at bruge den." : "\(release.version) er installeret.")
+                outcomes[id] = Outcome(ok: true, message: row.isInstalled ? "Updated to \(release.version). Restart Resolve to use it." : "\(release.version) is installed.")
                 glitch += 1
                 await telemetry.track(.init(type: "install_ok", targetId: id, fromVersion: row.installed, toVersion: release.version))
             } catch {
@@ -281,7 +283,7 @@ final class HubStore: ObservableObject {
 
     func restore(_ backup: Backup, row: Row) {
         if let host = row.target.host.flatMap({ catalog?.hosts[$0] }), !HostApps.running(host).isEmpty {
-            outcomes[row.id] = Outcome(ok: false, message: "Luk \(host.name) først, så kan backuppen lægges tilbage.")
+            outcomes[row.id] = Outcome(ok: false, message: "Quit \(host.name) first, then the backup can be restored.")
             return
         }
         let id = row.id
@@ -292,7 +294,7 @@ final class HubStore: ObservableObject {
                 try await installer.restore(backup, target: row.target) { step, p in
                     Task { @MainActor in self.jobs[id] = Job(step: step, progress: p) }
                 }
-                outcomes[id] = Outcome(ok: true, message: "Version \(backup.version) er lagt tilbage.")
+                outcomes[id] = Outcome(ok: true, message: "Version \(backup.version) has been restored.")
                 await telemetry.track(.init(type: "rollback", targetId: id, fromVersion: row.installed, toVersion: backup.version))
             } catch {
                 outcomes[id] = Outcome(ok: false, message: (error as? InstallError)?.errorDescription ?? error.localizedDescription)

@@ -5,13 +5,13 @@ public enum InstallStep: String, Sendable {
 
     public var label: String {
         switch self {
-        case .downloading: return "Henter"
-        case .verifying: return "Tjekker signatur"
-        case .unpacking: return "Pakker ud"
-        case .backingUp: return "Tager backup"
-        case .waitingForAdmin: return "Venter på godkendelse"
-        case .installing: return "Installerer"
-        case .done: return "Færdig"
+        case .downloading: return "Downloading"
+        case .verifying: return "Checking signature"
+        case .unpacking: return "Unpacking"
+        case .backingUp: return "Backing up"
+        case .waitingForAdmin: return "Waiting for approval"
+        case .installing: return "Installing"
+        case .done: return "Done"
         }
     }
 }
@@ -28,14 +28,14 @@ public enum InstallError: LocalizedError, Equatable {
 
     public var errorDescription: String? {
         switch self {
-        case .notInstallable: return "Der er ingen pakke til denne Mac."
-        case let .download(msg): return "Download fejlede: \(msg)"
+        case .notInstallable: return "There is no package for this Mac."
+        case let .download(msg): return "Download failed: \(msg)"
         case let .verify(e): return e.errorDescription
-        case let .unpack(msg): return "Kunne ikke pakke ud: \(msg)"
-        case let .backup(msg): return "Kunne ikke tage backup, så intet er ændret: \(msg)"
-        case .adminCancelled: return "Du annullerede administratorgodkendelsen. Intet er ændret."
-        case let .adminFailed(msg): return "Installationen med administratorrettigheder fejlede: \(msg)"
-        case let .postCheck(e, g): return "Efter installationen læser Hubben version \(g ?? "ingen"), forventede \(e)."
+        case let .unpack(msg): return "Could not unpack: \(msg)"
+        case let .backup(msg): return "Could not make a backup, so nothing was changed: \(msg)"
+        case .adminCancelled: return "You cancelled the administrator prompt. Nothing was changed."
+        case let .adminFailed(msg): return "Installing with administrator rights failed: \(msg)"
+        case let .postCheck(e, g): return "After installing, the Hub reads version \(g ?? "none"), expected \(e)."
         }
     }
 
@@ -141,7 +141,7 @@ public final class Installer: @unchecked Sendable {
         // 4. Back up what is there now.
         if fm.fileExists(atPath: install.path) {
             progress(.backingUp, nil)
-            try backup(targetId: target.id, installPath: install.path, version: installedVersion ?? "ukendt")
+            try backup(targetId: target.id, installPath: install.path, version: installedVersion ?? "unknown")
         }
 
         // 5. Swap it in.
@@ -234,7 +234,7 @@ public final class Installer: @unchecked Sendable {
             "/bin/rm -rf \(q(installPath))",
             "/bin/mv \(q(temp)) \(q(installPath))",
         ].joined(separator: "; ")
-        let prompt = "LINE21 Hub vil opdatere \(label) i \(parent)."
+        let prompt = "LINE21 Hub wants to update \(label) in \(parent)."
         let script = "do shell script \"\(Self.appleScriptEscape(command))\" with administrator privileges with prompt \"\(Self.appleScriptEscape(prompt))\""
         let result = try await Task.detached { try Shell.run("/usr/bin/osascript", ["-e", script]) }.value
         if result.status != 0 {
@@ -282,7 +282,7 @@ final class Downloader: NSObject, URLSessionDownloadDelegate, @unchecked Sendabl
 
     func urlSession(_ session: URLSession, downloadTask: URLSessionDownloadTask, didFinishDownloadingTo location: URL) {
         if let http = downloadTask.response as? HTTPURLResponse, !(200..<300).contains(http.statusCode) {
-            finish(URLError(.badServerResponse, userInfo: [NSLocalizedDescriptionKey: "serveren svarede \(http.statusCode)"]))
+            finish(URLError(.badServerResponse, userInfo: [NSLocalizedDescriptionKey: "the server answered \(http.statusCode)"]))
             return
         }
         do {

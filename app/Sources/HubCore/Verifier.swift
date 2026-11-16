@@ -14,15 +14,15 @@ public enum VerifyError: LocalizedError, Equatable {
 
     public var errorDescription: String? {
         switch self {
-        case let .sizeMismatch(e, g): return "Filen har en forkert størrelse (\(g) bytes, forventede \(e))."
-        case .hashMismatch: return "Filens checksum passer ikke med kataloget."
-        case .missingSignature: return "Udgivelsen er ikke signeret."
-        case .badSignature: return "Signaturen er ugyldig. Pakken er ikke fra LINE21 eller er blevet ændret."
-        case .badPublicKey: return "Hubbens offentlige nøgle mangler eller er ugyldig."
-        case let .bundleMissing(name): return "Pakken indeholder ikke \(name)."
-        case let .bundleIdMismatch(e, g): return "Pakken er \(g ?? "ukendt"), forventede \(e)."
-        case let .versionMismatch(e, g): return "Pakken er version \(g ?? "ukendt"), forventede \(e)."
-        case let .codesignFailed(msg): return "macOS' kodesignatur-tjek fejlede: \(msg)"
+        case let .sizeMismatch(e, g): return "The file has the wrong size (\(g) bytes, expected \(e))."
+        case .hashMismatch: return "The file's checksum does not match the catalog."
+        case .missingSignature: return "This release is not signed."
+        case .badSignature: return "The signature is invalid. The package is not from LINE21 or has been modified."
+        case .badPublicKey: return "The Hub's public key is missing or invalid."
+        case let .bundleMissing(name): return "The package does not contain \(name)."
+        case let .bundleIdMismatch(e, g): return "The package is \(g ?? "unknown"), expected \(e)."
+        case let .versionMismatch(e, g): return "The package is version \(g ?? "unknown"), expected \(e)."
+        case let .codesignFailed(msg): return "The macOS code signature check failed: \(msg)"
         }
     }
 }
