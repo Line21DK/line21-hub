@@ -8,7 +8,7 @@
       "label": "PROXEL for macOS",
       "kind": "tauri-app",
       "platform": "macos",
-      "install": { "path": "/Applications/FFmpeg Monster.app", "bundleId": "com.ffmpegmonster.app" },
+      "install": { "path": "/Applications/PROXEL.app", "bundleId": "com.proxel.desktop" },
       "releases": []
     }
   ]
