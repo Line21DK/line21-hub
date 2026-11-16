@@ -23,6 +23,13 @@
       "amount": 150,
       "currency": "DKK",
       "url": "https://buy.stripe.com/test_3cI4gBanifmH09GfJVgjC02"
+    },
+    {
+      "id": "valgfrit",
+      "label": "Custom amount",
+      "amount": null,
+      "currency": "DKK",
+      "url": "https://buy.stripe.com/test_cNi4gB52Ya2naOkcxJgjC03"
     }
   ]
 }
