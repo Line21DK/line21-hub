@@ -98,6 +98,16 @@ test('download redirects to a presigned link and counts it', async () => {
   s.close();
 });
 
+test('/download/:target points at the newest stable package, skipping beta and withdrawn', async () => {
+  const s = await serve();
+  const res = await fetch(`${s.base}/download/lineseparator-ofx-macos`, { redirect: 'manual' });
+  assert.equal(res.status, 302);
+  assert.equal(res.headers.get('location'), '/v1/download/lineseparator-ofx-macos/0.4.0/macos-universal');
+  assert.equal((await fetch(`${s.base}/download/line21-hub-macos`, { redirect: 'manual' })).status, 404);
+  assert.equal((await fetch(`${s.base}/download/nope`, { redirect: 'manual' })).status, 404);
+  s.close();
+});
+
 test('tauri endpoint answers 200 with an update and 204 without', async () => {
   const s = await serve({ publicBaseUrl: 'https://hub.line21.dk' });
   const res = await fetch(`${s.base}/v1/tauri/proxel-macos/darwin/aarch64/1.1.0`);

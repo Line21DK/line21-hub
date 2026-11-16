@@ -40,12 +40,29 @@ npm run release -- --target lineseparator-ofx-macos --version 0.3.1 \
 
 The tool refuses if the bundle ID or version inside the zip doesn't match what you're releasing.
 
+### Publish a new LINE21 Hub
+
+The Hub is in the catalog too (`line21-hub-macos`), so it updates itself: when a newer version is published, a banner says *LINE21 Hub X is available* and **Update & Relaunch** downloads it, checks the signature, swaps the app where it lives and opens the new one.
+
+1. Push to `main`. CI builds the app as version `0.1.<run number>`.
+2. Download the `LINE21-Hub` artifact from the run and unzip it once, so you have `LINE21-Hub.zip` (it contains `LINE21 Hub.app`).
+3. Sign, upload and add it to the catalog:
+
+```sh
+railway run npm run release -- --target line21-hub-macos --version 0.1.N \
+  --file ~/Downloads/LINE21-Hub.zip --notes "- What changed" --upload
+git commit -am "Publish LINE21 Hub 0.1.N" && git push
+```
+
+`https://<api>/download/line21-hub-macos` always points at the newest stable Hub, so that's the link to put on the website. It works for every target (`/download/floatblur-ofx-macos`, …).
+
 ## API
 
 | Endpoint | |
 | --- | --- |
 | `GET /v1/catalog?channel=stable\|beta` | The whole catalog, newest first, with an ETag. No bucket keys. |
 | `GET /v1/targets/:id` | One target. |
+| `GET /download/:target` | 302 to the newest stable macOS package. A fixed link for the website. |
 | `GET /v1/download/:target/:version/:platform-:arch` | 302 to a link that expires after 10 minutes. Counted as a download. |
 | `GET /v1/tauri/:target/:os/:arch/:current` | Tauri updater format for PROXEL (200 or 204). |
 | `POST /v1/events` | Anonymous events from the Hub. |

@@ -3,7 +3,7 @@ import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join, resolve } from 'node:path';
 import { timingSafeEqual } from 'node:crypto';
-import { loadCatalog, publicCatalog, findTarget, visibleReleases } from './catalog.js';
+import { loadCatalog, publicCatalog, findTarget, visibleReleases, downloadPath } from './catalog.js';
 import { bucketConfig, createStorage } from './storage.js';
 import { normalizeBatch, isInstallId, createJsonlStore, createPgStore, computeStats } from './events.js';
 import { compare } from './semver.js';
@@ -58,6 +58,16 @@ export function createApp({ catalog, storage = null, events, adminToken = null, 
         const view = url.searchParams.get('channel') === 'beta' ? views.beta : views.stable;
         for (const p of view.body.products) for (const t of p.targets) if (t.id === m[1]) return send(res, 200, { product: { id: p.id, name: p.name }, ...t });
         return send(res, 404, { error: 'unknown target' });
+      }
+
+      // Permanent "latest version" link for a website button: /download/line21-hub-macos.
+      if (req.method === 'GET' && (m = /^\/download\/([a-z0-9-]+)$/.exec(path))) {
+        const found = findTarget(catalog, m[1]);
+        const release = found && visibleReleases(found.target, 'stable').find((r) => r.artifacts?.some((a) => a.platform === 'macos'));
+        const artifact = release?.artifacts.find((a) => a.platform === 'macos' && a.arch === 'universal') ?? release?.artifacts.find((a) => a.platform === 'macos');
+        if (!artifact) return send(res, 404, { error: 'nothing to download yet' });
+        const to = downloadPath(m[1], release.version, artifact);
+        return send(res, 302, { url: to }, { location: to, 'cache-control': 'no-store' });
       }
 
       // Time-limited link to the installer in the private bucket. Counted as a download.

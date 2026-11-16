@@ -11,6 +11,7 @@ struct ContentView: View {
             Divider().overlay(L21.line)
             ScrollView {
                 VStack(alignment: .leading, spacing: 18) {
+                    if store.hubUpdate != nil || store.hubError != nil { HubUpdateBanner() }
                     if let error = store.loadError { Notice(text: error, color: L21.amber) }
                     ForEach(groups) { group in
                         VStack(alignment: .leading, spacing: 8) {
@@ -432,5 +433,48 @@ struct SettingsView: View {
         .formStyle(.grouped)
         .frame(width: 460)
         .onAppear { url = store.catalogURLString }
+    }
+}
+
+/// "A new LINE21 Hub is ready": shown above the list, never as a row.
+struct HubUpdateBanner: View {
+    @EnvironmentObject var store: HubStore
+    @State private var showNotes = false
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack(spacing: 12) {
+                Image(systemName: "arrow.triangle.2.circlepath").font(.system(size: 15, weight: .semibold)).foregroundStyle(L21.accent)
+                VStack(alignment: .leading, spacing: 2) {
+                    if let u = store.hubUpdate {
+                        Text("LINE21 Hub \(u.release.version) is available").font(.system(size: 13, weight: .semibold)).foregroundStyle(L21.ink)
+                        HStack(spacing: 6) {
+                            Text("You have \(Config.hubVersion)").font(L21.mono(11, .regular)).foregroundStyle(L21.muted)
+                            if !u.newReleases.isEmpty {
+                                Button(showNotes ? "Hide changes" : "What's new") { showNotes.toggle() }
+                                    .buttonStyle(L21ButtonStyle(kind: .quiet))
+                            }
+                        }
+                    } else {
+                        Text("LINE21 Hub").font(.system(size: 13, weight: .semibold)).foregroundStyle(L21.ink)
+                    }
+                }
+                Spacer()
+                if let job = store.hubJob {
+                    VStack(alignment: .trailing, spacing: 4) {
+                        Text(job.step == .waitingForAdmin ? "Approve in the macOS dialog" : job.step.label)
+                            .font(L21.mono(10.5, .regular)).foregroundStyle(L21.muted)
+                        TapeProgress(value: job.step == .downloading ? job.progress : nil).frame(width: 120)
+                    }
+                } else if store.hubUpdate != nil {
+                    Button("Update & Relaunch") { store.updateHub() }.buttonStyle(L21ButtonStyle())
+                }
+            }
+            if let error = store.hubError { Notice(text: error, color: L21.red) }
+            if showNotes, let u = store.hubUpdate { ReleaseNotes(releases: u.newReleases).padding(.leading, 27) }
+        }
+        .padding(12)
+        .background(L21.panel)
+        .overlay(Rectangle().strokeBorder(L21.accent.opacity(0.6), lineWidth: 1))
     }
 }

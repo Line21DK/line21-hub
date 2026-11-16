@@ -43,6 +43,14 @@ struct Row: Identifiable {
     }
 }
 
+/// A newer version of the Hub itself. It is not a row: it shows as a banner and replaces the running app.
+struct HubUpdate: Equatable {
+    var target: Target
+    var release: Release
+    var artifact: Artifact
+    var newReleases: [Release]
+}
+
 struct Job: Equatable {
     var step: InstallStep
     var progress: Double?
@@ -72,6 +80,9 @@ final class HubStore: ObservableObject {
     @Published private(set) var jobs: [String: Job] = [:]
     @Published private(set) var outcomes: [String: Outcome] = [:]
     @Published private(set) var afterQuit: [String: Set<String>] = [:] // hostId -> target ids
+    @Published private(set) var hubUpdate: HubUpdate?
+    @Published private(set) var hubJob: Job?
+    @Published private(set) var hubError: String?
     @Published var gate: HostGate?
     @Published var glitch = 0
 
@@ -157,7 +168,13 @@ final class HubStore: ObservableObject {
         let installed = Scanner.installedVersions(c)
         let macOS = Scanner.macOSVersion
         let hostVersions = Scanner.hostVersions(c.hosts)
-        rows = c.allTargets.filter { $0.target.platform == "macos" && $0.target.hubInstallable }.map { p, t in
+        let selfId = Bundle.main.bundleIdentifier ?? "dk.line21.hub"
+        hubUpdate = c.allTargets.first { $0.target.install?.bundleId == selfId }.flatMap { _, t in
+            guard let c = t.installable(macOS: macOS, arch: Telemetry.machineArch),
+                  SemVer.compare(c.release.version, Config.hubVersion) == .orderedDescending else { return nil }
+            return HubUpdate(target: t, release: c.release, artifact: c.artifact, newReleases: t.releases(after: Config.hubVersion))
+        }
+        rows = c.allTargets.filter { $0.target.platform == "macos" && $0.target.hubInstallable && $0.target.install?.bundleId != selfId }.map { p, t in
             let v = installed[t.id] ?? nil
             let candidate = t.installable(macOS: macOS, arch: Telemetry.machineArch)
             var blocked: String?
@@ -277,6 +294,48 @@ final class HubStore: ObservableObject {
             rescan()
             notifyNewVersions()
         }
+    }
+
+    // MARK: Updating the Hub itself
+
+    /// Downloads and verifies the new Hub like any other package, replaces this app where it lives, and relaunches.
+    func updateHub() {
+        guard let u = hubUpdate, hubJob == nil else { return }
+        let appPath = Bundle.main.bundlePath
+        if appPath.contains("/AppTranslocation/") || appPath.hasPrefix("/Volumes/") {
+            hubError = "Move LINE21 Hub to your Applications folder and open it from there, then update."
+            return
+        }
+        var target = u.target
+        target.install?.path = appPath // Replace the copy that is running, wherever the user keeps it.
+        hubError = nil
+        hubJob = Job(step: .downloading, progress: 0)
+        let installer = self.installer
+        let from = Config.hubVersion
+        Task {
+            do {
+                try await installer.install(target: target, release: u.release, artifact: u.artifact, installedVersion: from) { step, p in
+                    Task { @MainActor in self.hubJob = Job(step: step, progress: p) }
+                }
+                await telemetry.track(.init(type: "install_ok", targetId: target.id, fromVersion: from, toVersion: u.release.version))
+                relaunch(appPath)
+            } catch {
+                hubJob = nil
+                let e = error as? InstallError
+                hubError = e?.errorDescription ?? error.localizedDescription
+                await telemetry.track(.init(type: "install_fail", targetId: target.id, fromVersion: from, toVersion: u.release.version, error: e?.code ?? "other"))
+            }
+        }
+    }
+
+    private func relaunch(_ path: String) {
+        // A tiny shell waits until this process is gone, then opens the new bundle.
+        let p = Process()
+        p.executableURL = URL(fileURLWithPath: "/bin/sh")
+        p.arguments = ["-c", "while kill -0 \"$1\" 2>/dev/null; do sleep 0.2; done; /usr/bin/open \"$2\"", "sh",
+                       String(ProcessInfo.processInfo.processIdentifier), path]
+        try? p.run()
+        NSApp.terminate(nil)
     }
 
     func backups(for row: Row) -> [Backup] { installer.backups(for: row.id) }
