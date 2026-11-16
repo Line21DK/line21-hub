@@ -60,6 +60,13 @@ export function createApp({ catalog, storage = null, events, adminToken = null, 
         return send(res, 404, { error: 'unknown target' });
       }
 
+      if (req.method === 'GET' && (m = /^\/v1\/icons\/([a-z0-9-]+\.png)$/.exec(path))) {
+        const png = catalog.icons?.[m[1]];
+        if (!png) return send(res, 404, { error: 'unknown icon' });
+        res.writeHead(200, { 'content-type': 'image/png', 'content-length': png.length, 'cache-control': 'public, max-age=86400' });
+        return res.end(png);
+      }
+
       // Permanent "latest version" link for a website button: /download/line21-hub-macos.
       if (req.method === 'GET' && (m = /^\/download\/([a-z0-9-]+)$/.exec(path))) {
         const found = findTarget(catalog, m[1]);

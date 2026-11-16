@@ -43,6 +43,14 @@ struct Row: Identifiable {
     }
 }
 
+/// An app that updates itself (PROXEL) or lives on the web (Gearbank): the Hub only opens or downloads it.
+struct OtherApp: Identifiable {
+    var product: Product
+    var target: Target
+    var installed: String?
+    var id: String { target.id }
+}
+
 /// A newer version of the Hub itself. It is not a row: it shows as a banner and replaces the running app.
 struct HubUpdate: Equatable {
     var target: Target
@@ -80,6 +88,7 @@ final class HubStore: ObservableObject {
     @Published private(set) var jobs: [String: Job] = [:]
     @Published private(set) var outcomes: [String: Outcome] = [:]
     @Published private(set) var afterQuit: [String: Set<String>] = [:] // hostId -> target ids
+    @Published private(set) var others: [OtherApp] = []
     @Published private(set) var hubUpdate: HubUpdate?
     @Published private(set) var hubJob: Job?
     @Published private(set) var hubError: String?
@@ -173,6 +182,11 @@ final class HubStore: ObservableObject {
             guard let c = t.installable(macOS: macOS, arch: Telemetry.machineArch),
                   SemVer.compare(c.release.version, Config.hubVersion) == .orderedDescending else { return nil }
             return HubUpdate(target: t, release: c.release, artifact: c.artifact, newReleases: t.releases(after: Config.hubVersion))
+        }
+        others = c.allTargets.filter { _, t in
+            (t.kind == .tauriApp && t.platform == "macos") || t.kind == .webApp
+        }.map { p, t in
+            OtherApp(product: p, target: t, installed: t.install.flatMap { BundleInfo.read(at: URL(fileURLWithPath: $0.path))?.version })
         }
         rows = c.allTargets.filter { $0.target.platform == "macos" && $0.target.hubInstallable && $0.target.install?.bundleId != selfId }.map { p, t in
             let v = installed[t.id] ?? nil
@@ -271,8 +285,12 @@ final class HubStore: ObservableObject {
 
     private func run(_ row: Row) {
         guard let candidate = row.candidate else { return }
-        let release = candidate.release, artifact = candidate.artifact
+        run(row, release: candidate.release, artifact: candidate.artifact)
+    }
+
+    private func run(_ row: Row, release: Release, artifact: Artifact) {
         let id = row.id
+        let reinstall = row.installed == release.version
         outcomes[id] = nil
         jobs[id] = Job(step: .downloading, progress: 0)
         let installer = self.installer
@@ -282,7 +300,9 @@ final class HubStore: ObservableObject {
                     Task { @MainActor in self.jobs[id] = Job(step: step, progress: p) }
                 }
                 jobs[id] = nil
-                outcomes[id] = Outcome(ok: true, message: row.isInstalled ? "Updated to \(release.version). Restart Resolve to use it." : "\(release.version) is installed.")
+                let host = row.target.host.flatMap { catalog?.hosts[$0]?.name } ?? "the host app"
+                outcomes[id] = Outcome(ok: true, message: reinstall ? "\(release.version) was downloaded and installed again."
+                                       : row.isInstalled ? "Updated to \(release.version). Restart \(host) to use it." : "\(release.version) is installed.")
                 glitch += 1
                 await telemetry.track(.init(type: "install_ok", targetId: id, fromVersion: row.installed, toVersion: release.version))
             } catch {
@@ -336,6 +356,86 @@ final class HubStore: ObservableObject {
                        String(ProcessInfo.processInfo.processIdentifier), path]
         try? p.run()
         NSApp.terminate(nil)
+    }
+
+    // MARK: Row menu
+
+    /// The installed version's package, if the catalog still has it for this Mac.
+    func reinstallPackage(_ row: Row) -> (release: Release, artifact: Artifact)? {
+        guard let v = row.installed, let r = row.target.releases.first(where: { $0.version == v }) else { return nil }
+        let arch = Telemetry.machineArch
+        guard let a = r.artifacts.first(where: { $0.platform == "macos" && $0.arch == arch })
+                ?? r.artifacts.first(where: { $0.platform == "macos" && $0.arch == "universal" }) else { return nil }
+        return (r, a)
+    }
+
+    /// Download the installed version again and replace the bundle with a verified copy.
+    func reinstall(_ row: Row) {
+        guard jobs[row.id] == nil, let pkg = reinstallPackage(row) else { return }
+        if let host = row.target.host.flatMap({ catalog?.hosts[$0] }), !HostApps.running(host).isEmpty {
+            outcomes[row.id] = Outcome(ok: false, message: "Quit \(host.name) first, then reinstall.")
+            return
+        }
+        run(row, release: pkg.release, artifact: pkg.artifact)
+    }
+
+    /// Checks the installed bundle: right bundle ID, a version the catalog knows, and an intact code signature.
+    func verifyInstallation(_ row: Row) {
+        guard let install = row.target.install, let v = row.installed else { return }
+        let id = row.id
+        jobs[id] = Job(step: .verifying, progress: nil)
+        let known = row.target.releases.contains { $0.version == v } || row.target.withdrawn.contains(v)
+        Task.detached {
+            var result: Outcome
+            do {
+                try Verifier.verifyBundle(at: URL(fileURLWithPath: install.path), bundleId: install.bundleId, version: v)
+                result = known
+                    ? Outcome(ok: true, message: "Installation is OK: \(v), bundle ID and code signature check out.")
+                    : Outcome(ok: false, message: "The bundle looks intact, but \(v) is not a LINE21 release. Reinstall to be safe.")
+            } catch {
+                result = Outcome(ok: false, message: "\((error as? VerifyError)?.errorDescription ?? error.localizedDescription) Reinstall to repair it.")
+            }
+            await MainActor.run {
+                self.jobs[id] = nil
+                self.outcomes[id] = result
+            }
+        }
+    }
+
+    /// Moves the plugin to the Trash (macOS asks for the password when the folder is protected).
+    func uninstall(_ row: Row) {
+        guard let path = row.target.install?.path, row.isInstalled else { return }
+        if let host = row.target.host.flatMap({ catalog?.hosts[$0] }), !HostApps.running(host).isEmpty {
+            outcomes[row.id] = Outcome(ok: false, message: "Quit \(host.name) first, then uninstall.")
+            return
+        }
+        let id = row.id, from = row.installed
+        NSWorkspace.shared.recycle([URL(fileURLWithPath: path)]) { _, error in
+            Task { @MainActor in
+                if let error {
+                    self.outcomes[id] = Outcome(ok: false, message: "Couldn't move it to the Trash: \(error.localizedDescription)")
+                } else {
+                    self.outcomes[id] = Outcome(ok: true, message: "Moved to the Trash. Install it again any time.")
+                    await self.telemetry.track(.init(type: "uninstall", targetId: id, fromVersion: from))
+                }
+                self.rescan()
+            }
+        }
+    }
+
+    func open(_ app: OtherApp) {
+        if app.target.kind == .webApp, let url = app.target.url {
+            NSWorkspace.shared.open(url)
+        } else if let path = app.target.install?.path, app.installed != nil {
+            NSWorkspace.shared.open(URL(fileURLWithPath: path))
+        } else {
+            NSWorkspace.shared.open(apiBase.appendingPathComponent("download").appendingPathComponent(app.target.id))
+        }
+        Task { await telemetry.track(.init(type: "open", targetId: app.id)) }
+    }
+
+    func iconURL(_ product: Product) -> URL? {
+        product.icon.flatMap { URL(string: $0, relativeTo: apiBase) }
     }
 
     func backups(for row: Row) -> [Backup] { installer.backups(for: row.id) }

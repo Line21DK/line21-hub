@@ -1,6 +1,7 @@
 {
   "id": "proxel",
   "name": "PROXEL",
+  "icon": "proxel.png",
   "summary": "Media library and proxy toolkit for camera-original media.",
   "targets": [
     {
@@ -8,7 +9,10 @@
       "label": "PROXEL for macOS",
       "kind": "tauri-app",
       "platform": "macos",
-      "install": { "path": "/Applications/PROXEL.app", "bundleId": "com.proxel.desktop" },
+      "install": {
+        "path": "/Applications/PROXEL.app",
+        "bundleId": "com.proxel.desktop"
+      },
       "releases": []
     }
   ]

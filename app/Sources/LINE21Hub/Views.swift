@@ -26,6 +26,19 @@ struct ContentView: View {
                             .overlay(Rectangle().strokeBorder(L21.line, lineWidth: 1))
                         }
                     }
+                    if !store.others.isEmpty {
+                        VStack(alignment: .leading, spacing: 8) {
+                            Tag(text: "More from LINE21", color: L21.muted)
+                            VStack(spacing: 0) {
+                                ForEach(Array(store.others.enumerated()), id: \.element.id) { i, app in
+                                    if i > 0 { Rectangle().fill(L21.line).frame(height: 1) }
+                                    OtherAppRow(app: app)
+                                }
+                            }
+                            .background(L21.panel)
+                            .overlay(Rectangle().strokeBorder(L21.line, lineWidth: 1))
+                        }
+                    }
                     if store.rows.isEmpty && store.loadError == nil { LoadingTape() }
                 }
                 .padding(20)
@@ -43,13 +56,17 @@ struct ContentView: View {
         var rows: [Row]
     }
 
-    /// One section per host app, e.g. "DaVinci Resolve".
+    /// Installed plugins, one section per host app (e.g. "DaVinci Resolve"), then everything you can still install.
     private var groups: [Group] {
         let hosts = store.catalog?.hosts ?? [:]
-        let grouped = Dictionary(grouping: store.rows) { row -> String in
+        let installed = store.rows.filter(\.isInstalled)
+        let grouped = Dictionary(grouping: installed) { row -> String in
             row.target.host.flatMap { hosts[$0]?.name } ?? "Apps"
         }
-        return grouped.keys.sorted().map { Group(title: $0, rows: grouped[$0]!.sorted { $0.product.name < $1.product.name }) }
+        var result = grouped.keys.sorted().map { Group(title: $0, rows: grouped[$0]!.sorted { $0.product.name < $1.product.name }) }
+        let available = store.rows.filter { !$0.isInstalled }.sorted { $0.target.label < $1.target.label }
+        if !available.isEmpty { result.append(Group(title: "Available", rows: available)) }
+        return result
     }
 }
 
@@ -61,6 +78,8 @@ struct Header: View {
         HStack(spacing: 12) {
             GlitchMark(trigger: store.glitch).frame(width: 72, height: 14)
             Text("Hub").font(.system(size: 13, weight: .semibold)).foregroundStyle(L21.accentSoft)
+            Text("v\(Config.hubVersion)").font(L21.mono(10.5, .regular)).foregroundStyle(L21.muted)
+                .help("LINE21 Hub \(Config.hubVersion)")
             Spacer()
             Text(status).font(.system(size: 11.5)).foregroundStyle(L21.muted).monospacedDigit()
             Button {
@@ -96,6 +115,36 @@ struct Header: View {
     }()
 }
 
+/// The product's icon from the catalog, or its initials while it loads or if it has none.
+struct ProductIcon: View {
+    @EnvironmentObject var store: HubStore
+    var product: Product
+    var highlighted: Bool
+
+    var body: some View {
+        ZStack(alignment: .topTrailing) {
+            if let url = store.iconURL(product) {
+                AsyncImage(url: url) { phase in
+                    if let image = phase.image {
+                        image.resizable().interpolation(.high).aspectRatio(contentMode: .fit)
+                            .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+                    } else {
+                        ProductBadge(name: product.name, highlighted: false)
+                    }
+                }
+            } else {
+                ProductBadge(name: product.name, highlighted: false)
+            }
+            if highlighted {
+                Circle().fill(L21.red).frame(width: 9, height: 9)
+                    .overlay(Circle().strokeBorder(L21.panel, lineWidth: 1.5)).offset(x: 3, y: -3)
+            }
+        }
+        .frame(width: 34, height: 34)
+        .accessibilityHidden(true)
+    }
+}
+
 /// Small square with the product's initials, so each row reads as an app, not a web card.
 struct ProductBadge: View {
     var name: String
@@ -127,7 +176,7 @@ struct RowView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
             HStack(spacing: 12) {
-                ProductBadge(name: row.product.name, highlighted: updateReady)
+                ProductIcon(product: row.product, highlighted: updateReady)
                 VStack(alignment: .leading, spacing: 3) {
                     Text(row.product.name).font(.system(size: 14, weight: .semibold)).foregroundStyle(L21.ink)
                     HStack(spacing: 6) {
@@ -146,6 +195,15 @@ struct RowView: View {
                 }
                 Spacer(minLength: 12)
                 action
+                Menu { menu } label: {
+                    Image(systemName: "ellipsis").font(.system(size: 13, weight: .semibold)).foregroundStyle(L21.muted)
+                        .frame(width: 22, height: 22).contentShape(Rectangle())
+                }
+                .menuStyle(.borderlessButton)
+                .menuIndicator(.hidden)
+                .fixedSize()
+                .disabled(job != nil)
+                .help("More")
             }
 
             if let job {
@@ -188,7 +246,7 @@ struct RowView: View {
 
     private var versionText: some View {
         HStack(spacing: 4) {
-            Text(row.installed ?? "Ikke installeret").foregroundStyle(updateReady ? L21.muted : L21.accentSoft)
+            Text(row.installed ?? "Not installed").foregroundStyle(updateReady ? L21.muted : L21.accentSoft)
             if updateReady, let new = row.candidate?.release.version {
                 Text("→").foregroundStyle(L21.accent)
                 Text(new).foregroundStyle(L21.ink)
@@ -230,6 +288,15 @@ struct RowView: View {
     }
 
     @ViewBuilder private var menu: some View {
+        if !notes.isEmpty {
+            Button("What's New") { withAnimation(.easeOut(duration: 0.15)) { showNotes = true } }
+        }
+        if row.isInstalled {
+            Button("Check Installation") { store.verifyInstallation(row) }
+            if let v = row.installed, store.reinstallPackage(row) != nil {
+                Button("Reinstall \(v)") { store.reinstall(row) }
+            }
+        }
         if let path = row.target.install?.path, row.isInstalled {
             Button("Show in Finder") { NSWorkspace.shared.activateFileViewerSelecting([URL(fileURLWithPath: path)]) }
         }
@@ -244,6 +311,47 @@ struct RowView: View {
         if let home = row.product.homepage, let url = URL(string: home) {
             Button("Open Project Page") { NSWorkspace.shared.open(url) }
         }
+        if row.isInstalled {
+            Divider()
+            Button("Uninstall…") { store.uninstall(row) }
+        }
+    }
+}
+
+/// PROXEL and web apps: they update themselves, so the Hub only shows the version and opens or downloads them.
+struct OtherAppRow: View {
+    @EnvironmentObject var store: HubStore
+    var app: OtherApp
+
+    private var latest: String? { app.target.latest ?? app.target.releases.first?.version }
+
+    var body: some View {
+        HStack(spacing: 12) {
+            ProductIcon(product: app.product, highlighted: false)
+            VStack(alignment: .leading, spacing: 3) {
+                Text(app.product.name).font(.system(size: 14, weight: .semibold)).foregroundStyle(L21.ink)
+                HStack(spacing: 6) {
+                    if let v = app.installed {
+                        Text(v).font(L21.mono(11.5, .medium)).foregroundStyle(L21.accentSoft)
+                        Text("·").foregroundStyle(L21.line)
+                        Text("Updates itself").foregroundStyle(L21.muted)
+                    } else if let s = app.product.summary {
+                        Text(s).foregroundStyle(L21.muted).lineLimit(1)
+                    }
+                }
+                .font(.system(size: 11.5))
+            }
+            Spacer(minLength: 12)
+            if app.target.kind == .webApp || app.installed != nil {
+                Button("Open") { store.open(app) }.buttonStyle(L21ButtonStyle(kind: .secondary))
+            } else if latest != nil {
+                Button("Download") { store.open(app) }.buttonStyle(L21ButtonStyle(kind: .secondary))
+            } else {
+                Text("Coming soon").font(L21.mono(10.5, .regular)).foregroundStyle(L21.muted)
+            }
+        }
+        .padding(.horizontal, 14)
+        .padding(.vertical, 12)
     }
 }
 

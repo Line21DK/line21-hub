@@ -44,6 +44,8 @@ public struct Product: Codable, Equatable, Identifiable, Sendable {
     public var name: String
     public var summary: String?
     public var homepage: String?
+    /// Path on the catalog server, e.g. /v1/icons/floatblur.png.
+    public var icon: String?
     public var targets: [Target]
 }
 

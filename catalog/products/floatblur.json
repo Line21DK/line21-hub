@@ -1,6 +1,7 @@
 {
   "id": "floatblur",
   "name": "FloatBlur",
+  "icon": "floatblur.png",
   "summary": "Blur effect from LINE21.",
   "homepage": null,
   "targets": [

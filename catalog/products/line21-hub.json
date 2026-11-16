@@ -1,6 +1,7 @@
 {
   "id": "line21-hub",
   "name": "LINE21 Hub",
+  "icon": "line21-hub.png",
   "summary": "Installs and updates LINE21 software on your Mac.",
   "targets": [
     {
@@ -8,7 +9,10 @@
       "label": "LINE21 Hub for macOS",
       "kind": "app-bundle",
       "platform": "macos",
-      "install": { "path": "/Applications/LINE21 Hub.app", "bundleId": "dk.line21.hub" },
+      "install": {
+        "path": "/Applications/LINE21 Hub.app",
+        "bundleId": "dk.line21.hub"
+      },
       "releases": []
     }
   ]

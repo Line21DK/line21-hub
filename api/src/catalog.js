@@ -1,4 +1,4 @@
-import { readFileSync, readdirSync } from 'node:fs';
+import { readFileSync, readdirSync, existsSync } from 'node:fs';
 import { createHash } from 'node:crypto';
 import { join } from 'node:path';
 import { compare, isValid } from './semver.js';
@@ -22,7 +22,13 @@ export function loadCatalog(dir) {
   } catch (err) {
     if (err.code !== 'ENOENT') throw err;
   }
-  const catalog = { hosts, products, support };
+  // Product icons (catalog/icons/*.png), kept in memory and served by the API.
+  const icons = {};
+  const iconDir = join(dir, 'icons');
+  if (existsSync(iconDir)) {
+    for (const f of readdirSync(iconDir).filter((n) => /^[a-z0-9-]+\.png$/.test(n))) icons[f] = readFileSync(join(iconDir, f));
+  }
+  const catalog = { hosts, products, support, icons };
   const errors = validate(catalog);
   if (errors.length) {
     const e = new Error(`Catalog is invalid:\n- ${errors.join('\n- ')}`);
@@ -32,7 +38,7 @@ export function loadCatalog(dir) {
   return catalog;
 }
 
-export function validate({ hosts, products, support }) {
+export function validate({ hosts, products, support, icons }) {
   const errors = [];
   for (const t of support?.tiers ?? []) {
     if (!t.id || !t.label) errors.push(`support.json: every tier needs id and label`);
@@ -46,6 +52,7 @@ export function validate({ hosts, products, support }) {
     if (productIds.has(p.id)) errors.push(`${where}: duplicate product id ${p.id}`);
     productIds.add(p.id);
     if (!p.name) errors.push(`${where}: missing name`);
+    if (p.icon && icons && !icons[p.icon]) errors.push(`${where}: icon ${p.icon} is not in catalog/icons (lowercase .png)`);
     if (!Array.isArray(p.targets) || !p.targets.length) errors.push(`${where}: needs at least one target`);
     for (const t of p.targets ?? []) {
       const tw = `${where} › ${t.id}`;
@@ -115,6 +122,7 @@ export function publicCatalog(catalog, { channel = 'stable' } = {}) {
     name: p.name,
     summary: p.summary ?? null,
     homepage: p.homepage ?? null,
+    icon: p.icon ? `/v1/icons/${p.icon}` : null,
     targets: p.targets.map((t) => {
       const releases = visibleReleases(t, channel).map((r) => ({
         version: r.version,

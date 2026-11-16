@@ -98,6 +98,18 @@ test('download redirects to a presigned link and counts it', async () => {
   s.close();
 });
 
+test('product icons are listed in the catalog and served as png', async () => {
+  const s = await serve();
+  const cat = await (await fetch(`${s.base}/v1/catalog`)).json();
+  const ls = cat.products.find((p) => p.id === 'lineseparator');
+  assert.equal(ls.icon, '/v1/icons/lineseparator.png');
+  const res = await fetch(`${s.base}${ls.icon}`);
+  assert.equal(res.status, 200);
+  assert.equal(res.headers.get('content-type'), 'image/png');
+  assert.equal((await fetch(`${s.base}/v1/icons/nope.png`)).status, 404);
+  s.close();
+});
+
 test('/download/:target points at the newest stable package, skipping beta and withdrawn', async () => {
   const s = await serve();
   const res = await fetch(`${s.base}/download/lineseparator-ofx-macos`, { redirect: 'manual' });

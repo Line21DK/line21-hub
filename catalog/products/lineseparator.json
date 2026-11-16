@@ -1,6 +1,7 @@
 {
   "id": "lineseparator",
   "name": "LineSeparator Skin",
+  "icon": "lineseparator.png",
   "summary": "Frequency separation for skin: smoother skin without the plastic look.",
   "homepage": "https://github.com/Line21DK/seperator",
   "targets": [

@@ -3,7 +3,7 @@ import { dirname } from 'node:path';
 
 // Anonymous usage events. installId is a random UUID the Hub creates on first launch; nothing
 // ties it to a person, and the server never stores IP addresses.
-export const EVENT_TYPES = ['check', 'download', 'install_ok', 'install_fail', 'rollback', 'open', 'support_click'];
+export const EVENT_TYPES = ['check', 'download', 'install_ok', 'install_fail', 'rollback', 'uninstall', 'open', 'support_click'];
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const short = (v, n = 64) => (v == null ? null : String(v).slice(0, n));
 
