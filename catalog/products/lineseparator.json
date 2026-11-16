@@ -23,7 +23,16 @@
           "requires": {
             "macos": "11.0"
           },
-          "artifacts": []
+          "artifacts": [
+            {
+              "platform": "macos",
+              "arch": "universal",
+              "key": "lineseparator/lineseparator-ofx-macos/0.3.0/Seperator-macOS-universal.zip",
+              "size": 339059,
+              "sha256": "1ae23bd71ea8c57144e089b86325c616807b9182300a7c8603545da323a5c231",
+              "signature": "6hPcXGy1PLUWmUW5UNU+jRhMvf6W4VgSij8BR/InZE3jkCPjk7yVoq/Fnp3NRowGT9fIc+XSbc/VfaOFMWNgAQ=="
+            }
+          ]
         }
       ]
     }

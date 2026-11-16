@@ -23,7 +23,16 @@
           "requires": {
             "macos": "11.0"
           },
-          "artifacts": []
+          "artifacts": [
+            {
+              "platform": "macos",
+              "arch": "universal",
+              "key": "floatblur/floatblur-ofx-macos/0.2.0/FloatBlur-macOS-universal.zip",
+              "size": 202568,
+              "sha256": "57738e4dbc9335ead8a12c0bdcc26d9b143089145b033e2a5bf2ebcd83ece4e0",
+              "signature": "Ysci1u0+ybP7FlkeN+rlQ+H29UCMHT5rBBwhe3rh+RE/1MWTa/6xJMTvku3+or0PTJ55D3yaWeM45NWsE4QjBw=="
+            }
+          ]
         }
       ]
     }
