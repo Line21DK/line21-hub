@@ -25,8 +25,8 @@ jobs:
         run: swift test
       - name: Build app bundle
         env:
-          # Set these as repository variables once the Railway URL and signing key exist.
-          PUBLIC_KEY: ${{ vars.LINE21_SIGNING_PUBLIC_KEY || 'ab0XFw9+zx8DVgHjCxvJLLn2TOqm2PW1gi/auGzVGw8=' }}
+          # LINE21's release signing key (public half). Only packages signed with the private key install.
+          PUBLIC_KEY: ${{ vars.LINE21_SIGNING_PUBLIC_KEY || '/3r74rUkqg4MgBCdyWwHalNodW/0Nlz9BewS1T3ylaI=' }}
           CATALOG_URL: ${{ vars.LINE21_CATALOG_URL || 'https://api-production-c9ef3b74.up.railway.app' }}
           VERSION: 0.1.${{ github.run_number }}
         run: app/scripts/build-app.sh
