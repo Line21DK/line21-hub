@@ -1,0 +1,15 @@
+{
+  "id": "proxel",
+  "name": "PROXEL",
+  "summary": "Media library and proxy toolkit for camera-original media.",
+  "targets": [
+    {
+      "id": "proxel-macos",
+      "label": "PROXEL for macOS",
+      "kind": "tauri-app",
+      "platform": "macos",
+      "install": { "path": "/Applications/FFmpeg Monster.app", "bundleId": "com.ffmpegmonster.app" },
+      "releases": []
+    }
+  ]
+}
