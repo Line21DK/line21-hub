@@ -7,12 +7,13 @@ import { loadCatalog, publicCatalog, findTarget, visibleReleases, downloadPath }
 import { bucketConfig, createStorage } from './storage.js';
 import { normalizeBatch, isInstallId, createJsonlStore, createPgStore, computeStats } from './events.js';
 import { compare } from './semver.js';
+import { verifyStripeSignature, applyEvent, subscriberRows, billingOverview, createMemoryBillingStore, createPgBillingStore } from './billing.js';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const ADMIN_HTML = readFileSync(join(here, 'admin.html'), 'utf8');
 
 /** Builds the request handler. Exported so tests can run it without a network or a bucket. */
-export function createApp({ catalog, storage = null, events, adminToken = null, publicBaseUrl = null }) {
+export function createApp({ catalog, storage = null, events, billing = createMemoryBillingStore(), stripeWebhookSecret = null, adminToken = null, publicBaseUrl = null }) {
   const views = { stable: publicCatalog(catalog, { channel: 'stable' }), beta: publicCatalog(catalog, { channel: 'beta' }) };
   const limiter = rateLimiter({ perMinute: 120 });
 
@@ -44,7 +45,7 @@ export function createApp({ catalog, storage = null, events, adminToken = null, 
       }
 
       if (req.method === 'GET' && path === '/healthz') {
-        return send(res, 200, { ok: true, products: catalog.products.length, bucket: !!storage, events: events.kind });
+        return send(res, 200, { ok: true, products: catalog.products.length, bucket: !!storage, events: events.kind, billing: billing.kind, stripe: !!stripeWebhookSecret });
       }
 
       if (req.method === 'GET' && path === '/v1/catalog') {
@@ -145,6 +146,42 @@ export function createApp({ catalog, storage = null, events, adminToken = null, 
         return send(res, 200, { ...computeStats(rows, { days }), targets: latest }, { 'cache-control': 'no-store' });
       }
 
+      // Stripe webhooks: subscriptions, customers and invoices. Signed with STRIPE_WEBHOOK_SECRET.
+      if (req.method === 'POST' && path === '/v1/webhooks/stripe') {
+        if (!stripeWebhookSecret) return send(res, 503, { error: 'stripe webhooks are not configured' });
+        const raw = await readBody(req, 1024 * 1024);
+        if (!verifyStripeSignature(raw, req.headers['stripe-signature'], stripeWebhookSecret)) return send(res, 400, { error: 'bad signature' });
+        let event;
+        try { event = JSON.parse(raw.toString('utf8')); } catch { return send(res, 400, { error: 'invalid JSON' }); }
+        if (!event?.id || !event?.type) return send(res, 400, { error: 'not a stripe event' });
+        const fresh = await applyEvent(billing, event);
+        return send(res, 200, { received: true, duplicate: !fresh });
+      }
+
+      if (req.method === 'GET' && path.startsWith('/v1/admin/billing')) {
+        if (!isAdmin(req)) return send(res, 401, { error: 'admin token required' });
+        if (path === '/v1/admin/billing/overview') {
+          const [subscriptions, invoices] = await Promise.all([billing.all('subscriptions'), billing.all('invoices')]);
+          return send(res, 200, billingOverview(subscriptions, invoices), { 'cache-control': 'no-store' });
+        }
+        if (path === '/v1/admin/billing/subscribers') {
+          const [customers, subscriptions] = await Promise.all([billing.all('customers'), billing.all('subscriptions')]);
+          const rows = subscriberRows(customers, subscriptions, { q: url.searchParams.get('q') ?? '', status: url.searchParams.get('status') ?? '' });
+          return send(res, 200, { subscribers: rows }, { 'cache-control': 'no-store' });
+        }
+        if ((m = /^\/v1\/admin\/billing\/subscribers\/([A-Za-z0-9_]+)$/.exec(path))) {
+          const [customer, subscriptions, invoices] = await Promise.all([
+            billing.get('customers', m[1]), billing.where('subscriptions', 'customerId', m[1]), billing.where('invoices', 'customerId', m[1]),
+          ]);
+          if (!customer && !subscriptions.length) return send(res, 404, { error: 'unknown customer' });
+          const byDate = (a, b) => (b.createdAt ?? '').localeCompare(a.createdAt ?? '');
+          return send(res, 200, {
+            customer: customer ?? { id: m[1] }, subscriptions: subscriptions.sort(byDate), invoices: invoices.sort(byDate),
+          }, { 'cache-control': 'no-store' });
+        }
+        return send(res, 404, { error: 'not found' });
+      }
+
       return send(res, 404, { error: 'not found' });
     } catch (err) {
       if (err.status) return send(res, err.status, { error: err.message });
@@ -152,6 +189,22 @@ export function createApp({ catalog, storage = null, events, adminToken = null, 
       return send(res, 500, { error: 'internal error' });
     }
   };
+}
+
+function readBody(req, limit) {
+  return new Promise((resolveBody, reject) => {
+    let size = 0;
+    const chunks = [];
+    req.on('data', (c) => {
+      size += c.length;
+      if (size > limit) {
+        reject(Object.assign(new Error('body too large'), { status: 413 }));
+        req.destroy();
+      } else chunks.push(c);
+    });
+    req.on('end', () => resolveBody(Buffer.concat(chunks)));
+    req.on('error', reject);
+  });
 }
 
 function readJson(req, limit) {
@@ -196,8 +249,13 @@ async function main() {
   const events = process.env.DATABASE_URL
     ? await createPgStore(process.env.DATABASE_URL)
     : createJsonlStore(process.env.EVENTS_FILE ?? join(here, '../../data/events.jsonl'));
+  let billing = createMemoryBillingStore();
+  if (process.env.DATABASE_URL) {
+    const { default: pg } = await import('pg');
+    billing = await createPgBillingStore(new pg.Pool({ connectionString: process.env.DATABASE_URL, max: 4 }));
+  } else console.warn('DATABASE_URL is not set: subscribers are kept in memory only.');
   if (!process.env.ADMIN_TOKEN) console.warn('ADMIN_TOKEN is not set: the stats page is locked.');
-  const app = createApp({ catalog, storage, events, adminToken: process.env.ADMIN_TOKEN ?? null, publicBaseUrl: process.env.PUBLIC_BASE_URL ?? null });
+  const app = createApp({ catalog, storage, events, billing, stripeWebhookSecret: process.env.STRIPE_WEBHOOK_SECRET ?? null, adminToken: process.env.ADMIN_TOKEN ?? null, publicBaseUrl: process.env.PUBLIC_BASE_URL ?? null });
   const port = parseInt(process.env.PORT ?? '8080', 10);
   createServer(app).listen(port, () => {
     console.log(`LINE21 catalog on :${port} · ${catalog.products.length} products · bucket ${storage ? 'on' : 'off'} · events ${events.kind}`);
