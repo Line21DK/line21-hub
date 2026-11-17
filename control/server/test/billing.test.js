@@ -2,19 +2,12 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { createServer } from 'node:http';
 import { createHmac } from 'node:crypto';
-import { mkdtempSync } from 'node:fs';
-import { tmpdir } from 'node:os';
-import { join, dirname } from 'node:path';
-import { fileURLToPath } from 'node:url';
 import { createApp } from '../src/server.js';
-import { loadCatalog } from '../src/catalog.js';
-import { createJsonlStore } from '../src/events.js';
 import {
   verifyStripeSignature, applyEvent, subscriberRows, billingOverview, createMemoryBillingStore, createPgBillingStore,
 } from '../src/billing.js';
 
 const SECRET = 'whsec_test';
-const catalog = loadCatalog(join(dirname(fileURLToPath(import.meta.url)), '..', '..', 'catalog'));
 const sign = (body, t = Math.floor(Date.now() / 1000), secret = SECRET) =>
   `t=${t},v1=${createHmac('sha256', secret).update(`${t}.${body}`).digest('hex')}`;
 
@@ -30,8 +23,7 @@ const sub = (over = {}) => ({
 
 async function serve(opts = {}) {
   const billing = createMemoryBillingStore();
-  const events = createJsonlStore(join(mkdtempSync(join(tmpdir(), 'l21ev-')), 'events.jsonl'));
-  const server = createServer(createApp({ catalog, events, billing, stripeWebhookSecret: SECRET, adminToken: 'secret', ...opts }));
+  const server = createServer(createApp({ billing, stripeWebhookSecret: SECRET, controlToken: 'secret', ...opts }));
   await new Promise((r) => server.listen(0, r));
   const base = `http://127.0.0.1:${server.address().port}`;
   const hook = (event, sig) => {
@@ -71,9 +63,9 @@ test('webhook → subscriber list, detail and overview', async () => {
   await s.hook(ev('customer.created', { id: 'cus_2', email: 'bo@example.com', name: 'Bo', created: NOW - 50 }));
   await s.hook(ev('invoice.paid', { id: 'in_1', customer: 'cus_2', parent: { subscription_details: { subscription: 'sub_2' } }, status: 'paid', amount_paid: 95040, amount_due: 95040, currency: 'dkk', created: NOW - 40, status_transitions: { paid_at: NOW - 40 } }));
 
-  assert.equal((await fetch(`${s.base}/v1/admin/billing/subscribers`)).status, 401, 'admin only');
+  assert.equal((await fetch(`${s.base}/v1/subscribers`)).status, 401, 'admin only');
 
-  const { subscribers } = await s.admin('/v1/admin/billing/subscribers');
+  const { subscribers } = await s.admin('/v1/subscribers');
   assert.deepEqual(subscribers.map((r) => [r.email, r.status, r.product, r.interval]), [
     ['bo@example.com', 'active', 'proxel', 'year'],
     ['ann@example.com', 'trialing', 'proxel', 'month'],
@@ -81,15 +73,15 @@ test('webhook → subscriber list, detail and overview', async () => {
   assert.equal(subscribers[1].country, 'DK');
   assert.ok(subscribers[1].renewsAt, 'trial shows when it converts');
 
-  assert.equal((await s.admin('/v1/admin/billing/subscribers?q=ANN')).subscribers.length, 1);
-  assert.equal((await s.admin('/v1/admin/billing/subscribers?status=active')).subscribers[0].id, 'cus_2');
+  assert.equal((await s.admin('/v1/subscribers?q=ANN')).subscribers.length, 1);
+  assert.equal((await s.admin('/v1/subscribers?status=active')).subscribers[0].id, 'cus_2');
 
-  const detail = await s.admin('/v1/admin/billing/subscribers/cus_2');
+  const detail = await s.admin('/v1/subscribers/cus_2');
   assert.equal(detail.customer.name, 'Bo');
   assert.equal(detail.invoices[0].amountPaid, 95040);
   assert.equal(detail.invoices[0].subscriptionId, 'sub_2');
 
-  const o = await s.admin('/v1/admin/billing/overview');
+  const o = await s.admin('/v1/overview');
   assert.equal(o.active, 1);
   assert.equal(o.trialing, 1);
   assert.equal(o.mrr.dkk, 7920, 'yearly price counts as a twelfth per month; trials count as 0');
@@ -146,4 +138,23 @@ test('postgres store round trip', { skip: !process.env.PG_TEST_URL }, async () =
   assert.equal((await store.where('invoices', 'customerId', 'cus_1'))[0].status, 'failed');
   assert.equal((await store.all('subscriptions')).length, 1);
   await pool.end();
+});
+
+test('hub stats are fetched from the Hub API with its own token', async () => {
+  let asked;
+  const fetchImpl = async (url, init) => { asked = [url, init.headers.authorization]; return new Response(JSON.stringify({ activeInstalls: 3 })); };
+  const s = await serve({ hub: { url: 'https://hub.example', token: 'hubtok' }, fetchImpl });
+  assert.equal((await s.admin('/v1/hub-stats?days=7')).activeInstalls, 3);
+  assert.deepEqual(asked, ['https://hub.example/v1/admin/stats?days=7', 'Bearer hubtok']);
+  s.close();
+  const off = await serve();
+  assert.equal((await fetch(`${off.base}/v1/hub-stats`, { headers: { authorization: 'Bearer secret' } })).status, 503);
+  off.close();
+});
+
+test('wrong tokens are slowed down', async () => {
+  const s = await serve();
+  for (let i = 0; i < 20; i++) assert.equal((await fetch(`${s.base}/v1/overview`, { headers: { authorization: 'Bearer nope' } })).status, 401);
+  assert.equal((await fetch(`${s.base}/v1/overview`, { headers: { authorization: 'Bearer secret' } })).status, 429);
+  s.close();
 });

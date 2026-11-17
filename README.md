@@ -66,28 +66,27 @@ git commit -am "Publish LINE21 Hub 0.1.N" && git push
 | `GET /v1/download/:target/:version/:platform-:arch` | 302 to a link that expires after 10 minutes. Counted as a download. |
 | `GET /v1/tauri/:target/:os/:arch/:current` | Tauri updater format for PROXEL (200 or 204). |
 | `POST /v1/events` | Anonymous events from the Hub. |
-| `GET /admin` | Stats and Subscribers, private to you (needs `ADMIN_TOKEN`). |
-| `POST /v1/webhooks/stripe` | Stripe webhooks for customers, subscriptions and invoices (needs `STRIPE_WEBHOOK_SECRET`). |
-| `GET /v1/admin/billing/overview`, `/subscribers`, `/subscribers/:id` | Data for the Subscribers tab (admin token). |
+| `GET /admin` | Stats page, private to you (needs `ADMIN_TOKEN`). |
 | `GET /healthz` | Health check for Railway. |
 
-Environment: `ADMIN_TOKEN`, `PUBLIC_BASE_URL`, the bucket's `BUCKET`/`ENDPOINT`/`REGION`/`ACCESS_KEY_ID`/`SECRET_ACCESS_KEY`, `STRIPE_WEBHOOK_SECRET` for subscribers, and `DATABASE_URL` for stats and subscribers (without it, subscribers live only in memory and events go to `EVENTS_FILE`, which must live on a volume to survive deploys).
+Environment: `ADMIN_TOKEN`, `PUBLIC_BASE_URL`, the bucket's `BUCKET`/`ENDPOINT`/`REGION`/`ACCESS_KEY_ID`/`SECRET_ACCESS_KEY`, and `DATABASE_URL` for stats (without it, events go to `EVENTS_FILE`, which must live on a volume to survive deploys).
 
 ## Stats
 
 The Hub creates a random ID on first launch and sends: Hub version, macOS version, architecture, which LINE21 versions and which Resolve version are installed, and each download, update, failure (as a short error code) and rollback. No names, emails, files, projects or IP addresses. Users can turn it off in Settings. `/admin` shows active Hubs per day, downloads and installs per version, what people have installed right now, failures, and Resolve/macOS versions.
 
-## Subscribers
+## LINE21 Control (private)
 
-PROXEL is sold through Stripe Managed Payments (Stripe is the merchant of record and handles VAT). Stripe stays the source of truth for money; the API mirrors customers, subscriptions and invoices into Postgres from signed webhooks, and the Subscribers tab in `/admin` reads them. These tables are never joined with the anonymous Hub stats.
+`control/` is Brian's own admin hub, separate from the Hub: a Mac app (`control/app`, LINE21 Control) and its own server (`control/server`) with its own Postgres. The server receives Stripe webhooks (PROXEL is sold through Stripe Managed Payments) and mirrors customers, subscriptions and invoices; the app shows Subscribers and the Hub's anonymous stats. Customer data never touches the public Hub API.
 
-Set up, in sandbox first:
+Server environment: `CONTROL_TOKEN` (the app's login), `STRIPE_WEBHOOK_SECRET`, `DATABASE_URL`, and `HUB_API_URL` + `HUB_ADMIN_TOKEN` so the app can show Hub stats.
 
-1. In Stripe, create the PROXEL product with tax code `txcd_10202000` (downloadable software) and two prices: monthly, and yearly at 20 % off. Give each price the metadata `line21_product=proxel`.
-2. Add a webhook endpoint `https://<api>/v1/webhooks/stripe` with the events `customer.*`, `customer.subscription.*`, `checkout.session.completed` and `invoice.*`.
-3. Put its signing secret in the api service as `STRIPE_WEBHOOK_SECRET`. Test events show up as Test in the panel, with a link to the test dashboard.
+Set up, in Stripe sandbox first:
 
-Events are stored in `billing_events` and applied once each; an older event never overwrites a newer one.
+1. Railway: a new service from this repo with root directory `control/server`, plus its own Postgres.
+2. Stripe: create the PROXEL product with tax code `txcd_10202000` (downloadable software) and two prices, monthly and yearly at 20 % off, each with metadata `line21_product=proxel`.
+3. Stripe: a webhook endpoint `https://<control>/v1/webhooks/stripe` with `customer.*`, `customer.subscription.*`, `checkout.session.completed` and `invoice.*`. Its signing secret goes in `STRIPE_WEBHOOK_SECRET`.
+4. CI builds the app as the `LINE21-Control` artifact. Unzip it, open it, and log in with the server address and `CONTROL_TOKEN`.
 
 ## Development
 

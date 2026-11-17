@@ -153,7 +153,7 @@ test('events are validated, stored and summarised behind the admin token', async
   assert.deepEqual(stats.hostVersions, { 'davinci-resolve': { '20.2': 1 } });
   assert.equal(stats.targets['lineseparator-ofx-macos'].latest, '0.4.0');
   const html = await (await fetch(`${s.base}/admin`)).text();
-  assert.match(html, /LINE21 Hub · Admin/);
+  assert.match(html, /LINE21 Hub · Stats/);
   s.close();
 });
 
