@@ -26,13 +26,14 @@ public enum Format {
     public static func money(_ minor: Double?, _ currency: String?) -> String {
         guard let minor, let currency, !currency.isEmpty else { return "—" }
         let f = NumberFormatter()
-        f.numberStyle = .currency
+        f.numberStyle = .decimal
         f.locale = Locale(identifier: "en_US_POSIX")
-        f.currencyCode = currency.uppercased()
-        f.currencySymbol = currency.uppercased() + " "
+        f.usesGroupingSeparator = true
+        f.groupingSeparator = ","
         f.minimumFractionDigits = 2
         f.maximumFractionDigits = 2
-        return f.string(from: NSNumber(value: minor / 100)) ?? "\(currency.uppercased()) \(minor / 100)"
+        let number = f.string(from: NSNumber(value: minor / 100)) ?? String(format: "%.2f", minor / 100)
+        return "\(currency.uppercased()) \(number)"
     }
 
     /// Several currencies joined: "DKK 277.20 + EUR 12.00". Empty → "0".
