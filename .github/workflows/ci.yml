@@ -36,3 +36,40 @@ jobs:
         with:
           name: LINE21-Hub
           path: app/dist/LINE21-Hub.zip
+
+  control-server:
+    runs-on: ubuntu-24.04
+    defaults: { run: { working-directory: control/server } }
+    services:
+      postgres:
+        image: postgres:16
+        env: { POSTGRES_PASSWORD: postgres }
+        ports: ['5432:5432']
+        options: --health-cmd pg_isready --health-interval 5s --health-timeout 5s --health-retries 10
+    env:
+      PG_TEST_URL: postgres://postgres:postgres@localhost:5432/postgres
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22, cache: npm, cache-dependency-path: control/server/package-lock.json }
+      - run: npm ci
+      - run: npm test
+
+  control-app:
+    runs-on: macos-15-intel
+    steps:
+      - uses: actions/checkout@v4
+      - name: Test ControlCore
+        working-directory: control/app
+        run: swift test
+      - name: Build app bundle
+        env:
+          CONTROL_URL: ${{ vars.LINE21_CONTROL_URL || '' }}
+          VERSION: 0.1.${{ github.run_number }}
+        run: control/app/scripts/build-app.sh
+      - name: Zip app
+        run: cd control/app/dist && ditto -c -k --keepParent "LINE21 Control.app" LINE21-Control.zip
+      - uses: actions/upload-artifact@v4
+        with:
+          name: LINE21-Control
+          path: control/app/dist/LINE21-Control.zip

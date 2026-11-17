@@ -75,6 +75,19 @@ Environment: `ADMIN_TOKEN`, `PUBLIC_BASE_URL`, the bucket's `BUCKET`/`ENDPOINT`/
 
 The Hub creates a random ID on first launch and sends: Hub version, macOS version, architecture, which LINE21 versions and which Resolve version are installed, and each download, update, failure (as a short error code) and rollback. No names, emails, files, projects or IP addresses. Users can turn it off in Settings. `/admin` shows active Hubs per day, downloads and installs per version, what people have installed right now, failures, and Resolve/macOS versions.
 
+## LINE21 Control (private)
+
+`control/` is Brian's own admin hub, separate from the Hub: a Mac app (`control/app`, LINE21 Control) and its own server (`control/server`) with its own Postgres. The server receives Stripe webhooks (PROXEL is sold through Stripe Managed Payments) and mirrors customers, subscriptions and invoices; the app shows Subscribers and the Hub's anonymous stats. Customer data never touches the public Hub API.
+
+Server environment: `CONTROL_TOKEN` (the app's login), `STRIPE_WEBHOOK_SECRET`, `DATABASE_URL`, and `HUB_API_URL` + `HUB_ADMIN_TOKEN` so the app can show Hub stats.
+
+Set up, in Stripe sandbox first:
+
+1. Railway: a new service from this repo with root directory `control/server`, plus its own Postgres.
+2. Stripe: create the PROXEL product with tax code `txcd_10202000` (downloadable software) and two prices, monthly and yearly at 20 % off, each with metadata `line21_product=proxel`.
+3. Stripe: a webhook endpoint `https://<control>/v1/webhooks/stripe` with `customer.*`, `customer.subscription.*`, `checkout.session.completed` and `invoice.*`. Its signing secret goes in `STRIPE_WEBHOOK_SECRET`.
+4. CI builds the app as the `LINE21-Control` artifact. Unzip it, open it, and log in with the server address and `CONTROL_TOKEN`.
+
 ## Development
 
 ```sh
